@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+
+    <!-- PWA / Mobile essentials -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SwingTrading" />
+    <meta name="theme-color" content="#080d0f" />
+    <meta name="description" content="Gestor de portafolio de swing trading con análisis AI" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+    <title>Swing Trading Portfolio</title>
+
+    <style>
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        height: 100dvh;
+        overflow: hidden;
+        background: #080d0f;
+      }
+
+      /* Full-bleed on small screens, centered card on large screens */
+      #root {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+      }
+
+      /* Prevent iOS rubber-band scroll */
+      body {
+        overscroll-behavior: none;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
+      }
+
+      /* Remove tap highlight on mobile */
+      * { -webkit-tap-highlight-color: transparent; }
+
+      /* Safe area insets for notch / home-bar */
+      .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 8px); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
