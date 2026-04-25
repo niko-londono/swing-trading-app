@@ -444,6 +444,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem("swingScriptUrl") || "");
   const [syncStatus, setSyncStatus] = useState("idle"); // idle | pulling | pushing | ok | error
+  const [updatingPrices, setUpdatingPrices] = useState(false);
   const [editScriptUrl, setEditScriptUrl] = useState(false);
   const fileRef = useRef();
 
@@ -456,6 +457,44 @@ export default function App() {
   const isMobile = windowWidth < 768;
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
+
+  const updatePrices = async () => {
+    if (portfolio.length === 0) return;
+    setUpdatingPrices(true);
+    try {
+      const tickers = portfolio.map(s => s.ticker).join(",");
+      const targetUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${tickers}`);
+      const res = await fetch(`https://api.allorigins.win/raw?url=${targetUrl}`);
+      
+      if (!res.ok) throw new Error("Error en red al contactar Yahoo Finance");
+      
+      const json = await res.json();
+      const results = json?.quoteResponse?.result || [];
+      const priceMap = {};
+      results.forEach(q => {
+        if (q.symbol && q.regularMarketPrice) {
+          priceMap[q.symbol] = q.regularMarketPrice;
+        }
+      });
+      
+      let count = 0;
+      setPortfolio(prev => prev.map(s => {
+        if (priceMap[s.ticker]) {
+          count++;
+          return { ...s, price: priceMap[s.ticker] };
+        }
+        return s;
+      }));
+      
+      if (count > 0) showToast(`✓ ${count} precios actualizados`);
+      else showToast("✕ No se hallaron precios nuevos");
+    } catch (e) {
+      console.error(e);
+      showToast("✕ Error al actualizar precios");
+    } finally {
+      setUpdatingPrices(false);
+    }
+  };
 
   // ── Year ──────────────────────────────────────────────────────────
   const data = allData[activeYear] ?? emptyYear();
@@ -1442,7 +1481,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff" }}>
             {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : "Análisis AI"}
           </div>
-          <div style={{ fontSize: "10px", color: "#00ff8866", letterSpacing: "2px" }}>YTD <span style={{ color: "#00ff88", fontWeight: "700", fontSize: "13px" }}>${ytd.toFixed(2)}</span></div>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <button onClick={updatePrices} disabled={updatingPrices || portfolio.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px", background: updatingPrices ? "#1a2a1a" : "#0a1f12", border: "1px solid #00ff8844", borderRadius: "8px", padding: "8px 12px", color: updatingPrices ? "#9e968f" : "#00ff88", fontSize: "10px", fontFamily: "inherit", cursor: updatingPrices || portfolio.length === 0 ? "default" : "pointer", transition: "all 0.2s" }}>
+              <span style={{ display: "inline-block", transform: updatingPrices ? "rotate(180deg)" : "none", transition: "transform 0.5s" }}>🔄</span>
+              {updatingPrices ? "CARGANDO..." : "ACTUALIZAR PRECIOS"}
+            </button>
+            <div style={{ fontSize: "10px", color: "#00ff8866", letterSpacing: "2px" }}>YTD <span style={{ color: "#00ff88", fontWeight: "700", fontSize: "13px" }}>${ytd.toFixed(2)}</span></div>
+          </div>
         </div>
 
         {/* Screen content */}
