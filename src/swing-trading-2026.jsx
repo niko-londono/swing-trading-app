@@ -1324,7 +1324,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         {tab === "ai" && <AIScreen />}
       </div>
 
-      <div style={{ display: "flex", background: "#080d0f", borderTop: "1px solid #0f1a1a", paddingBottom: "max(8px, env(safe-area-inset-bottom))", flexShrink: 0 }}>
+      <div style={{ display: "flex", background: "#080d0f", borderTop: "1px solid #0f1a1a", paddingBottom: "env(safe-area-inset-bottom, 0px)", flexShrink: 0 }}>
         {NAV.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex: 1, background: "none", border: "none", padding: "10px 0 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
             <span style={{ fontSize: "17px", color: tab === id ? "#00ff88" : "#2a3a3a", filter: tab === id ? "drop-shadow(0 0 6px #00ff88)" : "none" }}>{icon}</span>
