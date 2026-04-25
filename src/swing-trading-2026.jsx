@@ -1206,14 +1206,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ fontSize: "13px", lineHeight: "1.85", color: "#b0bcc8", whiteSpace: "pre-wrap" }}>{aiText}</div>
         </div>
       )}
-      <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "18px", marginBottom: "14px" }}>
-        <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "14px" }}>⇅ IMPORTAR / EXPORTAR EXCEL</div>
-        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-          <button onClick={exportExcel} style={{ flex: 1, padding: "14px", background: "linear-gradient(135deg,#1a2a10,#2a4a1a)", border: "1px solid #00ff8833", borderRadius: "12px", color: "#00ff88", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>↓ EXPORTAR</button>
-          <button onClick={() => fileRef.current.click()} style={{ flex: 1, padding: "14px", background: "linear-gradient(135deg,#1a1a2a,#2a2a4a)", border: "1px solid #4af3", borderRadius: "12px", color: "#4aaeff", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>↑ IMPORTAR</button>
-        </div>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={importExcel} style={{ display: "none" }} />
-      </div>
+
 
       {/* ── Google Sheets Sync ── */}
       <div style={{ background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "16px", padding: "18px", marginBottom: "14px" }}>
