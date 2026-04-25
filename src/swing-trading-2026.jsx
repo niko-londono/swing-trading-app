@@ -181,9 +181,10 @@ const selectSt = { ...inputSt, fontSize: "13px", appearance: "none", cursor: "po
 
 function InputModal({ label, value, onSave, onClose }) {
   const [val, setVal] = useState(value === "" ? "" : value);
+  const isMobile = window.innerWidth < 768;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "flex-end", zIndex: 200, backdropFilter: "blur(4px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #00ff8844", borderRadius: "20px 20px 0 0", padding: "24px 20px 40px", boxSizing: "border-box" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #00ff8844", border: !isMobile ? "1px solid #00ff8844" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff88", marginBottom: "14px" }}>EDITAR · {label}</div>
         <input autoFocus type="number" step="0.01" placeholder="0.00" value={val} onChange={e => setVal(e.target.value)}
           style={{ ...inputSt, fontSize: "24px", border: "1px solid #00ff8866", color: "#00ff88" }} />
@@ -204,9 +205,10 @@ function AddStockModal({ onSave, onClose }) {
   const [month, setMonth] = useState(0); // 0 = enero
   const valid = ticker.trim() && parseFloat(shares) > 0 && parseFloat(price) > 0;
   const total = valid ? parseFloat(shares) * parseFloat(price) : 0;
+  const isMobile = window.innerWidth < 768;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "flex-end", zIndex: 200, backdropFilter: "blur(4px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #00ff8844", borderRadius: "20px 20px 0 0", padding: "24px 20px 40px", boxSizing: "border-box" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #00ff8844", border: !isMobile ? "1px solid #00ff8844" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff88", marginBottom: "18px" }}>AGREGAR POSICIÓN</div>
         <div style={{ marginBottom: "12px" }}>
           <div style={labelSt}>TICKER</div>
@@ -259,9 +261,10 @@ function AddTradingModal({ portfolioTickers, onSave, onClose }) {
   const pct = parseFloat(capital) > 0 && ganancia !== ""
     ? (parseFloat(ganancia) / parseFloat(capital)) * 100 : null;
   const valid = ticker.trim() && parseFloat(capital) > 0 && ganancia !== "";
+  const isMobile = window.innerWidth < 768;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "flex-end", zIndex: 200, backdropFilter: "blur(4px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #aa88ff44", borderRadius: "20px 20px 0 0", padding: "22px 20px 40px", boxSizing: "border-box" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #aa88ff44", border: !isMobile ? "1px solid #aa88ff44" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "22px 20px 40px" : "22px 20px", boxSizing: "border-box" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#aa88ff", marginBottom: "16px" }}>AGREGAR OPERACIÓN DE TRADING</div>
         <div style={{ marginBottom: "12px" }}>
           <div style={labelSt}>ACCIÓN USADA COMO CAPITAL</div>
@@ -296,7 +299,7 @@ function AddTradingModal({ portfolioTickers, onSave, onClose }) {
         )}
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={onClose} style={{ flex: 1, padding: "14px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>Cancelar</button>
-          <button disabled={!valid} onClick={() => onSave({ id: uid(), tipo: "trading", ticker: ticker.toUpperCase().trim(), capital: parseFloat(capital), ganancia: parseFloat(ganancia) })}
+          <button disabled={!valid} onClick={() => { onSave({ id: uid(), tipo: "trading", ticker: ticker.toUpperCase().trim(), capital: parseFloat(capital), ganancia: parseFloat(ganancia) }); onClose(); }}
             style={{ flex: 2, padding: "14px", background: valid ? "linear-gradient(135deg,#1a0a2a,#3a1a5a)" : "#1a2a2a", border: valid ? "1px solid #aa88ff55" : "none", borderRadius: "12px", color: valid ? "#aa88ff" : "#556", fontSize: "13px", fontFamily: "inherit", cursor: valid ? "pointer" : "default", fontWeight: "700" }}>
             REGISTRAR
           </button>
@@ -342,9 +345,10 @@ function AddTransactionModal({ onSave, onClose }) {
     onClose();
   };
 
+  const isMobile = window.innerWidth < 768;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: "flex-end", zIndex: 200, backdropFilter: "blur(4px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #ffd70044", borderRadius: "20px 20px 0 0", padding: "22px 20px 40px", boxSizing: "border-box" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #ffd70044", border: !isMobile ? "1px solid #ffd70044" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "22px 20px 40px" : "22px 20px", boxSizing: "border-box" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#ffd700", marginBottom: "16px" }}>AGREGAR TRANSACCIÓN DE ACCIONES</div>
         <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
           {["dividendo", "venta"].map(t => (
