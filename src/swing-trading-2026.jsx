@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine,
   PieChart, Pie, Cell, BarChart, Bar,
@@ -443,6 +443,14 @@ export default function App() {
   const [editScriptUrl, setEditScriptUrl] = useState(false);
   const fileRef = useRef();
 
+  const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const isMobile = windowWidth < 768;
+
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(""), 3000); };
 
   // ── Year ──────────────────────────────────────────────────────────
@@ -854,7 +862,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "10px", marginBottom: "12px" }}>
         {[
           { label: "FALTANTE", value: `$${faltante.toFixed(2)}`, color: "#ffd700", sub: "para meta" },
           { label: "PROMEDIO/MES", value: `$${promedio.toFixed(2)}`, color: "#4af", sub: "actual" },
@@ -1300,8 +1308,24 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     </div>
   );
 
+  // ── Modals (shared between layouts) ──────────────────────────────
+  const Modals = () => (
+    <>
+      {modal && <InputModal label={`${MONTHS[modal.i]} · ${modal.label}`} value={data[modal.i][modal.field]} onSave={val => update(modal.i, modal.field, val)} onClose={() => setModal(null)} />}
+      {editGoal && <InputModal label="META ANUAL ($)" value={goal} onSave={val => { if (parseFloat(val) > 0) setGoal(parseFloat(val)); }} onClose={() => setEditGoal(false)} />}
+      {editCash && <InputModal label="CASH ($)" value={cash} onSave={val => setCash(parseFloat(val) || 0)} onClose={() => setEditCash(false)} />}
+      {addStock && <AddStockModal onSave={handleAddStock} onClose={() => setAddStock(false)} />}
+      {addTx !== null && <AddTransactionModal onSave={tx => handleAddTransaction(addTx, tx)} onClose={() => setAddTx(null)} />}
+      {addTrade !== null && <AddTradingModal portfolioTickers={portfolioTickers} onSave={tx => handleAddTrading(addTrade, tx)} onClose={() => setAddTrade(null)} />}
+      {editPrice !== null && portfolio[editPrice] && <InputModal label={`PRECIO · ${portfolio[editPrice].ticker}`} value={portfolio[editPrice].price} onSave={val => updateStockPrice(editPrice, val)} onClose={() => setEditPrice(null)} />}
+      {editShares !== null && portfolio[editShares] && <InputModal label={`ACCIONES · ${portfolio[editShares].ticker}`} value={portfolio[editShares].shares} onSave={val => updateStockShares(editShares, val)} onClose={() => setEditShares(null)} />}
+    </>
+  );
+
   // ── Root ──────────────────────────────────────────────────────────
-  return (
+
+  // ── MOBILE layout ─────────────────────────────────────────────────
+  if (isMobile) return (
     <div style={{ width: "100%", maxWidth: "480px", height: "100dvh", background: "#080d0f", display: "flex", flexDirection: "column", fontFamily: "'Courier New',monospace", overflow: "hidden", margin: "0 auto", position: "relative" }}>
       {toast && (
         <div style={{ position: "absolute", top: "70px", left: "50%", transform: "translateX(-50%)", background: "#0a1f12", border: "1px solid #00ff8855", borderRadius: "10px", padding: "10px 18px", fontSize: "11px", color: "#00ff88", zIndex: 300, whiteSpace: "nowrap" }}>
@@ -1314,16 +1338,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : "Análisis AI"}
         </div>
       </div>
-
       <YearSelector />
-
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         {tab === "home" && <HomeScreen />}
         {tab === "tabla" && <TablaScreen />}
         {tab === "resumen" && <ResumenScreen />}
         {tab === "ai" && <AIScreen />}
       </div>
-
       <div style={{ display: "flex", background: "#080d0f", borderTop: "1px solid #0f1a1a", paddingBottom: "env(safe-area-inset-bottom, 0px)", flexShrink: 0 }}>
         {NAV.map(({ id, icon, label }) => (
           <button key={id} onClick={() => setTab(id)} style={{ flex: 1, background: "none", border: "none", padding: "10px 0 4px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
@@ -1333,16 +1354,77 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </button>
         ))}
       </div>
+      <Modals />
+    </div>
+  );
 
-      {/* Modals */}
-      {modal && <InputModal label={`${MONTHS[modal.i]} · ${modal.label}`} value={data[modal.i][modal.field]} onSave={val => update(modal.i, modal.field, val)} onClose={() => setModal(null)} />}
-      {editGoal && <InputModal label="META ANUAL ($)" value={goal} onSave={val => { if (parseFloat(val) > 0) setGoal(parseFloat(val)); }} onClose={() => setEditGoal(false)} />}
-      {editCash && <InputModal label="CASH ($)" value={cash} onSave={val => setCash(parseFloat(val) || 0)} onClose={() => setEditCash(false)} />}
-      {addStock && <AddStockModal onSave={handleAddStock} onClose={() => setAddStock(false)} />}
-      {addTx !== null && <AddTransactionModal onSave={tx => handleAddTransaction(addTx, tx)} onClose={() => setAddTx(null)} />}
-      {addTrade !== null && <AddTradingModal portfolioTickers={portfolioTickers} onSave={tx => handleAddTrading(addTrade, tx)} onClose={() => setAddTrade(null)} />}
-      {editPrice !== null && portfolio[editPrice] && <InputModal label={`PRECIO · ${portfolio[editPrice].ticker}`} value={portfolio[editPrice].price} onSave={val => updateStockPrice(editPrice, val)} onClose={() => setEditPrice(null)} />}
-      {editShares !== null && portfolio[editShares] && <InputModal label={`ACCIONES · ${portfolio[editShares].ticker}`} value={portfolio[editShares].shares} onSave={val => updateStockShares(editShares, val)} onClose={() => setEditShares(null)} />}
+  // ── DESKTOP / TABLET layout ────────────────────────────────────────
+  return (
+    <div style={{ width: "100%", height: "100dvh", background: "#080d0f", display: "flex", flexDirection: "row", fontFamily: "'Courier New',monospace", overflow: "hidden", position: "relative" }}>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{ position: "fixed", top: "24px", left: "50%", transform: "translateX(-50%)", background: "#0a1f12", border: "1px solid #00ff8855", borderRadius: "10px", padding: "10px 18px", fontSize: "11px", color: "#00ff88", zIndex: 300, whiteSpace: "nowrap" }}>
+          {toast}
+        </div>
+      )}
+
+      {/* ── LEFT SIDEBAR ── */}
+      <div style={{ width: "220px", display: "flex", flexDirection: "column", background: "#080d0f", borderRight: "1px solid #0f1a1a", flexShrink: 0 }}>
+
+        {/* Logo */}
+        <div style={{ padding: "28px 20px 20px" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866", marginBottom: "4px" }}>◈ SWING TRADING</div>
+          <div style={{ fontSize: "13px", fontWeight: "700", color: "#fff", letterSpacing: "1px" }}>Portfolio Manager</div>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: "0 12px" }}>
+          {NAV.map(({ id, icon, label }) => (
+            <button key={id} onClick={() => setTab(id)}
+              style={{ width: "100%", display: "flex", alignItems: "center", gap: "12px", padding: "12px 16px", marginBottom: "4px", background: tab === id ? "#0a1f12" : "none", border: tab === id ? "1px solid #00ff8822" : "1px solid transparent", borderRadius: "12px", color: tab === id ? "#00ff88" : "#4a5a5a", cursor: "pointer", fontFamily: "inherit", textAlign: "left", transition: "all 0.15s" }}>
+              <span style={{ fontSize: "16px", filter: tab === id ? "drop-shadow(0 0 6px #00ff88)" : "none" }}>{icon}</span>
+              <span style={{ fontSize: "11px", letterSpacing: "2px", fontWeight: tab === id ? "700" : "400" }}>{label}</span>
+              {tab === id && <div style={{ marginLeft: "auto", width: "3px", height: "16px", background: "#00ff88", borderRadius: "2px" }} />}
+            </button>
+          ))}
+        </nav>
+
+        {/* Year Selector in sidebar */}
+        <div style={{ padding: "16px 12px", borderTop: "1px solid #0f1a1a" }}>
+          <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#00ff8866", marginBottom: "10px", paddingLeft: "4px" }}>AÑO ACTIVO</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#0a1015", borderRadius: "12px", padding: "8px 12px" }}>
+            <button onClick={() => goYear(-1)} style={{ background: "none", border: "none", color: "#c9c0b4", cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: "0 4px" }}>‹</button>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "18px", fontWeight: "700", color: "#fff", letterSpacing: "2px" }}>{activeYear}</div>
+              {years.length > 1 && <div style={{ fontSize: "7px", color: "#00ff8877", marginTop: "1px" }}>{years.length} AÑOS</div>}
+            </div>
+            <button onClick={() => goYear(+1)} style={{ background: "none", border: "none", color: "#c9c0b4", cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: "0 4px" }}>›</button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN CONTENT ── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+
+        {/* Top bar */}
+        <div style={{ padding: "20px 32px 16px", borderBottom: "1px solid #0f1a1a", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff" }}>
+            {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : "Análisis AI"}
+          </div>
+          <div style={{ fontSize: "10px", color: "#00ff8866", letterSpacing: "2px" }}>YTD <span style={{ color: "#00ff88", fontWeight: "700", fontSize: "13px" }}>${ytd.toFixed(2)}</span></div>
+        </div>
+
+        {/* Screen content */}
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {tab === "home" && <HomeScreen />}
+          {tab === "tabla" && <TablaScreen />}
+          {tab === "resumen" && <ResumenScreen />}
+          {tab === "ai" && <AIScreen />}
+        </div>
+      </div>
+
+      <Modals />
     </div>
   );
 }
