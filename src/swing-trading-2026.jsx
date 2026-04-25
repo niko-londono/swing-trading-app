@@ -522,16 +522,33 @@ export default function App() {
   };
 
   // ── Add Stock (with purchase record) ─────────────────────────────
-  const handleAddStock = ({ ticker, shares, price, monthIdx, history }) => {
+  const handleAddStock = ({ ticker, shares, price, monthIdx }) => {
     const total = parseFloat((shares * price).toFixed(2));
     const mes = MONTHS[monthIdx];
-    // Add to portfolio
-    const newStock = { ticker, shares, price, history: [{ tipo: "compra", mes, year: activeYear, shares, precioCompra: price, cashUsado: total }] };
-    setPortfolio(prev => [...prev, newStock]);
-    // Deduct cash
-    setCash(prev => parseFloat((prev - total).toFixed(2)));
-    // Register compra in that month's accionesDetail (monto:0 - no G/L impact)
     const compraTx = { id: uid(), tipo: "compra", ticker, shares, precioCompra: price, monto: 0 };
+
+    setPortfolio(prev => {
+      const existing = prev.find(s => s.ticker === ticker);
+      if (existing) {
+        // Merge: add shares, update price to weighted average, append history
+        return prev.map(s => {
+          if (s.ticker !== ticker) return s;
+          const totalShares = parseFloat((s.shares + shares).toFixed(6));
+          const weightedPrice = parseFloat(((s.shares * s.price + shares * price) / totalShares).toFixed(4));
+          return {
+            ...s,
+            shares: totalShares,
+            price: weightedPrice,
+            history: [...(s.history || []), { tipo: "compra", mes, year: activeYear, shares, precioCompra: price, cashUsado: total }],
+          };
+        });
+      } else {
+        // New ticker
+        return [...prev, { ticker, shares, price, history: [{ tipo: "compra", mes, year: activeYear, shares, precioCompra: price, cashUsado: total }] }];
+      }
+    });
+
+    setCash(prev => parseFloat((prev - total).toFixed(2)));
     setAllData(prev => {
       const yd = (prev[activeYear] ?? emptyYear()).map(r => ({ ...r, accionesDetail: [...(r.accionesDetail || [])] }));
       yd[monthIdx].accionesDetail = [...(yd[monthIdx].accionesDetail || []), compraTx];
@@ -1073,28 +1090,35 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         </div>
       )}
 
-      {/* ── BAR CHART ── */}
-      {barData.length > 0 && (
-        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart data={barData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-              <XAxis dataKey="ticker" tick={{ fontSize: 9, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 7, fill: "#9e968f" }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`, "Valor"]} />
-              <Bar dataKey="valor" radius={[4, 4, 0, 0]}>
-                {barData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {/* ── BAR CHART (vertical / horizontal ranked) ── */}
+      {barData.length > 0 && (() => {
+        const sortedBar = [...barData].sort((a, b) => b.valor - a.valor);
+        const barHeight = Math.max(120, sortedBar.length * 38);
+        return (
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+            <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
+            <ResponsiveContainer width="100%" height={barHeight}>
+              <BarChart data={sortedBar} layout="vertical" margin={{ top: 4, right: 60, left: 0, bottom: 4 }}>
+                <XAxis type="number" tick={{ fontSize: 7, fill: "#9e968f" }} axisLine={false} tickLine={false} tickFormatter={v => `$${v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)}`} />
+                <YAxis type="category" dataKey="ticker" tick={{ fontSize: 9, fill: "#c9c0b4" }} axisLine={false} tickLine={false} width={52} />
+                <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`, "Valor"]} />
+                <Bar dataKey="valor" radius={[0, 4, 4, 0]} label={{ position: "right", fontSize: 9, fill: "#c9c0b4", formatter: v => `$${v.toFixed(0)}` }}>
+                  {sortedBar.map((entry, i) => {
+                    const origIdx = barData.findIndex(b => b.ticker === entry.ticker);
+                    return <Cell key={i} fill={PIE_COLORS[origIdx % PIE_COLORS.length]} />;
+                  })}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
 
       {/* ── POSITIONS ── */}
       <div style={{ marginBottom: "16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#c9c0b4" }}>MIS POSICIONES</div>
-          <button onClick={() => setAddStock(true)} style={{ background: "linear-gradient(135deg,#004d2a,#007a42)", border: "none", borderRadius: "8px", color: "#00ff88", fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", letterSpacing: "1px" }}>+ AGREGAR</button>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "2px", color: "#c9c0b4" }}>MIS POSICIONES</div>
+          <button onClick={() => setAddStock(true)} style={{ background: "linear-gradient(135deg,#004d2a,#007a42)", border: "none", borderRadius: "8px", color: "#00ff88", fontSize: isMobile ? "10px" : "12px", padding: "6px 12px", cursor: "pointer", fontFamily: "inherit", letterSpacing: "1px" }}>+ AGREGAR</button>
         </div>
 
         {portfolio.length === 0 && (
@@ -1104,6 +1128,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
         )}
 
+        <div style={{ display: isMobile ? "block" : "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
         {portfolio.map((s, idx) => {
           const valor = s.shares * s.price;
           const weight = totalPortfolioValue > 0 ? (valor / totalPortfolioValue) * 100 : 0;
@@ -1111,7 +1136,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           const isEmpty = s.shares === 0;
           const hasHist = (s.history || []).length > 0;
           return (
-            <div key={idx} style={{ background: "#0c1318", border: `1px solid ${isEmpty ? "#ff445533" : col + "33"}`, borderRadius: "14px", padding: "14px", marginBottom: "8px", borderLeft: `3px solid ${isEmpty ? "#ff4455" : col}` }}>
+            <div key={idx} style={{ background: "#0c1318", border: `1px solid ${isEmpty ? "#ff445533" : col + "33"}`, borderRadius: "14px", padding: "14px", marginBottom: isMobile ? "8px" : "0", borderLeft: `3px solid ${isEmpty ? "#ff4455" : col}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1169,6 +1194,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* ── TX HISTORY ── */}
