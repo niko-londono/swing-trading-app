@@ -1319,7 +1319,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <BarChart data={dividendosData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#ffd700", marginBottom: "4px" }} formatter={(val) => [`$${val.toFixed(2)}`]} />
+              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#ffd700", marginBottom: "4px" }} formatter={(val, name) => [`$${val.toFixed(2)}`, name]} />
               {divTickers.map((ticker, i) => (
                 <Bar key={ticker} dataKey={ticker} stackId="a" fill={PIE_COLORS[i % PIE_COLORS.length]} radius={i === divTickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
               ))}
@@ -1336,7 +1336,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <BarChart data={ventasData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#4aaeff", marginBottom: "4px" }} formatter={(val) => [`$${val.toFixed(2)}`]} />
+              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#4aaeff", marginBottom: "4px" }} formatter={(val, name) => [`$${val.toFixed(2)}`, name]} />
               {ventaTickers.map((ticker, i) => (
                 <Bar key={ticker} dataKey={ticker} stackId="a" fill={PIE_COLORS[(i + 5) % PIE_COLORS.length]} radius={i === ventaTickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
               ))}
@@ -1371,7 +1371,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               <BarChart layout="vertical" data={sortedBar} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
                 <XAxis type="number" hide />
                 <YAxis dataKey="ticker" type="category" tick={{ fontSize: 9, fill: "#c9c0b4", fontWeight: "bold" }} axisLine={false} tickLine={false} width={60} />
-                <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#00ff88", fontWeight: "bold" }} formatter={v => [`$${v.toFixed(2)}`]} />
+                <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#00ff88", fontWeight: "bold" }} labelStyle={{ color: "#ffffff", fontWeight: "bold", marginBottom: "4px" }} formatter={v => [`$${v.toFixed(2)}`]} />
                 <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20}>
                   {sortedBar.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
