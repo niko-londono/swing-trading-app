@@ -445,6 +445,7 @@ export default function App() {
   const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem("swingScriptUrl") || "");
   const [syncStatus, setSyncStatus] = useState("idle"); // idle | pulling | pushing | ok | error
   const [updatingPrices, setUpdatingPrices] = useState(false);
+  const [editTx, setEditTx] = useState(null); // { i, txId, type, field, label, value }
   const [editScriptUrl, setEditScriptUrl] = useState(false);
   const fileRef = useRef();
 
@@ -843,7 +844,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   );
 
   // Shared TxCard for acciones
-  const TxCard = ({ tx, onRemove }) => {
+  const TxCard = ({ tx, onRemove, onEdit }) => {
     const invertido = tx.tipo === "venta" ? tx.sharesVendidas * tx.precioCompra : null;
     const ganPct = invertido ? (tx.monto / invertido) * 100 : null;
     const bCol = badgeColor(tx.tipo);
@@ -857,6 +858,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {tx.tipo !== "compra" && <span style={{ fontSize: "13px", fontWeight: "700", color: tx.monto >= 0 ? "#00ff88" : "#ff4455" }}>{fmt(tx.monto)}</span>}
             {tx.tipo === "compra" && <span style={{ fontSize: "11px", color: "#9e968f" }}>{tx.shares}u @ ${tx.precioCompra}</span>}
+            {tx.tipo === "dividendo" && onEdit && <button onClick={() => onEdit("monto", `DIVIDENDO ${tx.ticker}`, tx.monto)} style={{ background: "none", border: "none", color: "#ffd70099", fontSize: "12px", cursor: "pointer", padding: "0 4px" }}>✎</button>}
             {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", color: "#ff445566", fontSize: "12px", cursor: "pointer", padding: "0 2px" }}>✕</button>}
           </div>
         </div>
@@ -982,12 +984,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   const TablaScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
       <div style={{ fontSize: "9px", color: "#c9c0b4", letterSpacing: "1px", marginBottom: "12px", textAlign: "center" }}>✎ Toca un mes para expandir y editar</div>
-      {computed.map((row, i) => {
-        const isOpen = expanded === i;
-        const hasData = row.total !== null;
-        const col = pctColor(row.rendPct);
-        const txs = row.accionesDetail || [];
-        const tds = row.tradingDetail || [];
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "10px" }}>
+        {computed.map((row, i) => {
+          const isOpen = expanded === i;
+          const hasData = row.total !== null;
+          const col = pctColor(row.rendPct);
+          const txs = row.accionesDetail || [];
+          const tds = row.tradingDetail || [];
         return (
           <div key={i} style={{ background: "#0c1318", border: `1px solid ${hasData ? col + "33" : "#1a2a2a"}`, borderRadius: "14px", marginBottom: "8px", overflow: "hidden", opacity: hasData ? 1 : 0.55 }}>
             <div onClick={() => setExpanded(isOpen ? null : i)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", cursor: "pointer" }}>
@@ -1014,7 +1017,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 <div style={{ background: "#0a0f18", borderRadius: "10px", padding: "12px", marginBottom: "10px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div>
-                      <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>G/L TRADING</div>
+                      <div style={{ fontSize: isMobile ? "7px" : "11px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>G/L TRADING</div>
                       <div style={{ fontSize: "16px", fontWeight: "700", color: row.t !== null ? pctColor(row.rendPct) : "#9e968f" }}>
                         {tds.length > 0 ? fmt(row.t) : row.trading !== "" ? `$${parseFloat(row.trading).toFixed(2)}` : "—"}
                       </div>
@@ -1054,7 +1057,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 <div style={{ background: "#0a1010", borderRadius: "10px", padding: "12px", marginBottom: "10px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
                     <div>
-                      <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>G/L ACCIONES</div>
+                      <div style={{ fontSize: isMobile ? "7px" : "11px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>G/L ACCIONES</div>
                       <div style={{ fontSize: "16px", fontWeight: "700", color: row.a > 0 ? "#ffd700" : "#9e968f" }}>{row.a > 0 ? fmt(row.a) : "—"}</div>
                     </div>
                     <button onClick={() => setAddTx(i)} style={{ background: "linear-gradient(135deg,#2a2000,#4a3800)", border: "1px solid #ffd70055", borderRadius: "8px", color: "#ffd700", fontSize: "9px", padding: "6px 10px", cursor: "pointer", fontFamily: "inherit", letterSpacing: "1px" }}>
@@ -1063,7 +1066,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   </div>
                   {txs.length === 0
                     ? <div style={{ fontSize: "10px", color: "#9e968f", textAlign: "center", padding: "8px 0" }}>Sin transacciones registradas</div>
-                    : txs.map(tx => <TxCard key={tx.id} tx={tx} onRemove={() => removeTransaction(i, tx.id)} />)
+                    : txs.map(tx => <TxCard key={tx.id} tx={tx} onRemove={() => removeTransaction(i, tx.id)} onEdit={(field, label, value) => setEditTx({ i, txId: tx.id, type: "acciones", field, label, value })} />)
                   }
                 </div>
 
@@ -1089,6 +1092,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
         );
       })}
+      </div>
       <div style={{ background: "#071a10", border: "1px solid #00ff8833", borderRadius: "14px", padding: "16px", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
         <div>
           <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>TOTAL REALIZADO</div>
@@ -1395,6 +1399,22 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       {addTrade !== null && <AddTradingModal portfolioTickers={portfolioTickers} onSave={tx => handleAddTrading(addTrade, tx)} onClose={() => setAddTrade(null)} />}
       {editPrice !== null && portfolio[editPrice] && <InputModal label={`PRECIO · ${portfolio[editPrice].ticker}`} value={portfolio[editPrice].price} onSave={val => updateStockPrice(editPrice, val)} onClose={() => setEditPrice(null)} />}
       {editShares !== null && portfolio[editShares] && <InputModal label={`ACCIONES · ${portfolio[editShares].ticker}`} value={portfolio[editShares].shares} onSave={val => updateStockShares(editShares, val)} onClose={() => setEditShares(null)} />}
+      {editTx && (
+        <InputModal 
+          label={editTx.label} 
+          value={editTx.value} 
+          onSave={val => {
+            setAllData(prev => {
+              const yd = (prev[activeYear] ?? emptyYear()).map(r => ({ ...r, accionesDetail: [...(r.accionesDetail || [])], tradingDetail: [...(r.tradingDetail || [])] }));
+              const detailsKey = editTx.type === "acciones" ? "accionesDetail" : "tradingDetail";
+              yd[editTx.i][detailsKey] = yd[editTx.i][detailsKey].map(t => t.id === editTx.txId ? { ...t, [editTx.field]: parseFloat(val) || 0 } : t);
+              return { ...prev, [activeYear]: yd };
+            });
+            setEditTx(null);
+          }} 
+          onClose={() => setEditTx(null)} 
+        />
+      )}
     </>
   );
 
