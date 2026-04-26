@@ -658,6 +658,33 @@ export default function App() {
     .map((r, i) => ({ mes: MONTHS[i], mesIdx: i, txs: (r.accionesDetail || []), tradeTxs: (r.tradingDetail || []) }))
     .filter(m => m.txs.length > 0 || m.tradeTxs.length > 0);
 
+  // ── Gráficos Data ─────────────────────────────────────────────────
+  const rendMensualData = computed.map((r, i) => ({
+    mes: MONTHS_SHORT[i],
+    totalGL: r.total ?? 0,
+    rendTrading: r.rendPct ?? 0,
+    rendPortafolio: (totalPortfolioValue > 0 && r.total !== null) ? (r.total / totalPortfolioValue) * 100 : 0
+  }));
+
+  const dividendosData = computed.map((r, i) => {
+    const obj = { mes: MONTHS_SHORT[i] };
+    (r.accionesDetail || []).filter(tx => tx.tipo === "dividendo").forEach(tx => {
+      obj[tx.ticker] = (obj[tx.ticker] || 0) + tx.monto;
+    });
+    return obj;
+  });
+
+  const ventasData = computed.map((r, i) => {
+    const obj = { mes: MONTHS_SHORT[i] };
+    (r.accionesDetail || []).filter(tx => tx.tipo === "venta").forEach(tx => {
+      obj[tx.ticker] = (obj[tx.ticker] || 0) + tx.monto;
+    });
+    return obj;
+  });
+
+  const divTickers = Array.from(new Set(computed.flatMap(r => (r.accionesDetail || []).filter(tx => tx.tipo === "dividendo").map(tx => tx.ticker))));
+  const ventaTickers = Array.from(new Set(computed.flatMap(r => (r.accionesDetail || []).filter(tx => tx.tipo === "venta").map(tx => tx.ticker))));
+
   // ── Excel Export ──────────────────────────────────────────────────
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
@@ -827,6 +854,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     { id: "home", icon: "◈", label: "INICIO" },
     { id: "tabla", icon: "⊞", label: "TABLA" },
     { id: "resumen", icon: "◎", label: "RESUMEN" },
+    { id: "graficos", icon: "📊", label: "GRÁFICOS" },
     { id: "ai", icon: "⟁", label: "ANÁLISIS" },
   ];
 
@@ -1129,45 +1157,6 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         </div>
       </div>
 
-      {/* ── PIE CHART ── */}
-      {pieData.length > 0 && (
-        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "4px" }}>DISTRIBUCIÓN</div>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" outerRadius={70} dataKey="value" labelLine={false} label={PieLabel}>
-                {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`]} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* ── BAR CHART (vertical / horizontal ranked) ── */}
-      {barData.length > 0 && (() => {
-        const sortedBar = [...barData].sort((a, b) => b.valor - a.valor);
-        const barHeight = Math.max(120, sortedBar.length * 38);
-        return (
-          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-            <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
-            <ResponsiveContainer width="100%" height={barHeight}>
-              <BarChart data={sortedBar} layout="vertical" margin={{ top: 4, right: 60, left: 0, bottom: 4 }}>
-                <XAxis type="number" tick={{ fontSize: 7, fill: "#9e968f" }} axisLine={false} tickLine={false} tickFormatter={v => `$${v >= 1000 ? (v/1000).toFixed(1)+'k' : v.toFixed(0)}`} />
-                <YAxis type="category" dataKey="ticker" tick={{ fontSize: 9, fill: "#c9c0b4" }} axisLine={false} tickLine={false} width={52} />
-                <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`, "Valor"]} />
-                <Bar dataKey="valor" radius={[0, 4, 4, 0]} label={{ position: "right", fontSize: 9, fill: "#c9c0b4", formatter: v => `$${v.toFixed(0)}` }}>
-                  {sortedBar.map((entry, i) => {
-                    const origIdx = barData.findIndex(b => b.ticker === entry.ticker);
-                    return <Cell key={i} fill={PIE_COLORS[origIdx % PIE_COLORS.length]} />;
-                  })}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        );
-      })()}
-
       {/* ── POSITIONS ── */}
       <div style={{ marginBottom: "16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -1274,6 +1263,124 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           })
         }
       </div>
+    </div>
+  );
+
+  const GraficosScreen = () => (
+    <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+      
+      {/* ── RENDIMIENTO MENSUAL ── */}
+      <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+        <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>RENDIMIENTO MENSUAL (TOTAL G/L)</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={rendMensualData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+            <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
+            <Tooltip 
+              cursor={{ fill: "#1a2a2a" }} 
+              contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} 
+              itemStyle={{ color: "#d4ccbf" }} 
+              labelStyle={{ color: "#00ff88", marginBottom: "4px" }} 
+              formatter={(val, name, props) => {
+                if (name === "totalGL") return [`$${val.toFixed(2)}`, "Total G/L"];
+                return [val, name];
+              }}
+              labelFormatter={(label) => `MES: ${label}`}
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "10px", borderRadius: "8px" }}>
+                      <div style={{ fontSize: "10px", color: "#00ff88", fontWeight: "bold", marginBottom: "6px" }}>{label}</div>
+                      <div style={{ fontSize: "11px", color: "#fff", marginBottom: "4px" }}>Total G/L: <span style={{ color: data.totalGL >= 0 ? "#00ff88" : "#ff4455" }}>${data.totalGL.toFixed(2)}</span></div>
+                      <div style={{ fontSize: "9px", color: "#c9c0b4" }}>Rend. Trading: {data.rendTrading.toFixed(2)}%</div>
+                      <div style={{ fontSize: "9px", color: "#4aaeff" }}>Rend. Portafolio: {data.rendPortafolio.toFixed(2)}%</div>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Bar dataKey="totalGL" radius={[4, 4, 0, 0]}>
+              {rendMensualData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.totalGL >= 0 ? "#00ff88" : "#ff4455"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* ── DIVIDENDOS ── */}
+      {divTickers.length > 0 && (
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#ffd700", marginBottom: "10px" }}>DIVIDENDOS POR MES</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={dividendosData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+              <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#ffd700", marginBottom: "4px" }} formatter={(val) => [`$${val.toFixed(2)}`]} />
+              {divTickers.map((ticker, i) => (
+                <Bar key={ticker} dataKey={ticker} stackId="a" fill={PIE_COLORS[i % PIE_COLORS.length]} radius={i === divTickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ── VENTAS ── */}
+      {ventaTickers.length > 0 && (
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#4aaeff", marginBottom: "10px" }}>G/L DE VENTAS POR MES</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={ventasData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+              <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#4aaeff", marginBottom: "4px" }} formatter={(val) => [`$${val.toFixed(2)}`]} />
+              {ventaTickers.map((ticker, i) => (
+                <Bar key={ticker} dataKey={ticker} stackId="a" fill={PIE_COLORS[(i + 5) % PIE_COLORS.length]} radius={i === ventaTickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ── PIE CHART ── */}
+      {pieData.length > 0 && (
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "4px" }}>DISTRIBUCIÓN DEL PORTAFOLIO</div>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="50%" outerRadius={70} dataKey="value" labelLine={false} label={PieLabel}>
+                {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* ── VALOR POR ACTIVO ── */}
+      {barData.length > 0 && (() => {
+        const sortedBar = [...barData].sort((a, b) => b.valor - a.valor);
+        const barHeight = Math.max(120, sortedBar.length * 38);
+        return (
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
+            <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
+            <ResponsiveContainer width="100%" height={barHeight}>
+              <BarChart layout="vertical" data={sortedBar} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="ticker" type="category" tick={{ fontSize: 9, fill: "#c9c0b4", fontWeight: "bold" }} axisLine={false} tickLine={false} width={60} />
+                <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#00ff88", fontWeight: "bold" }} formatter={v => [`$${v.toFixed(2)}`]} />
+                <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20}>
+                  {sortedBar.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        );
+      })()}
     </div>
   );
 
@@ -1431,7 +1538,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       <div style={{ padding: "16px 20px 12px", paddingTop: "calc(16px + env(safe-area-inset-top))", borderBottom: "1px solid #0f1a1a", flexShrink: 0 }}>
         <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866" }}>◈ SWING TRADING</div>
         <div style={{ fontSize: "20px", fontWeight: "700", color: "#fff", marginBottom: "12px" }}>
-          {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : "Análisis AI"}
+          {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos" : "Análisis AI"}
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={updatePrices} disabled={updatingPrices || portfolio.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px", background: updatingPrices ? "#1a2a1a" : "#0a1f12", border: "1px solid #00ff8844", borderRadius: "8px", padding: "8px 12px", color: updatingPrices ? "#9e968f" : "#00ff88", fontSize: "10px", fontFamily: "inherit", cursor: updatingPrices || portfolio.length === 0 ? "default" : "pointer", transition: "all 0.2s" }}>
@@ -1446,6 +1553,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         {tab === "home" && <HomeScreen />}
         {tab === "tabla" && <TablaScreen />}
         {tab === "resumen" && <ResumenScreen />}
+        {tab === "graficos" && <GraficosScreen />}
         {tab === "ai" && <AIScreen />}
       </div>
       <div style={{ display: "flex", background: "#080d0f", borderTop: "1px solid #0f1a1a", paddingBottom: "env(safe-area-inset-bottom, 0px)", flexShrink: 0 }}>
@@ -1513,7 +1621,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         {/* Top bar */}
         <div style={{ padding: "20px 32px 16px", borderBottom: "1px solid #0f1a1a", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff" }}>
-            {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : "Análisis AI"}
+            {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos y Métricas" : "Análisis AI"}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button onClick={updatePrices} disabled={updatingPrices || portfolio.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px", background: updatingPrices ? "#1a2a1a" : "#0a1f12", border: "1px solid #00ff8844", borderRadius: "8px", padding: "8px 12px", color: updatingPrices ? "#9e968f" : "#00ff88", fontSize: "10px", fontFamily: "inherit", cursor: updatingPrices || portfolio.length === 0 ? "default" : "pointer", transition: "all 0.2s" }}>
