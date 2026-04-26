@@ -1268,12 +1268,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
   const GraficosScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-      
-      {/* ── RENDIMIENTO MENSUAL ── */}
-      <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-        <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>RENDIMIENTO MENSUAL (TOTAL G/L)</div>
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={rendMensualData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", alignItems: "start" }}>
+        
+        {/* ── RENDIMIENTO MENSUAL ── */}
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>RENDIMIENTO MENSUAL (TOTAL G/L)</div>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={rendMensualData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
             <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
             <Tooltip 
@@ -1312,9 +1313,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
       {/* ── DIVIDENDOS ── */}
       {divTickers.length > 0 && (
-        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#ffd700", marginBottom: "10px" }}>DIVIDENDOS POR MES</div>
-          <ResponsiveContainer width="100%" height={200}>
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#ffd700", marginBottom: "10px" }}>DIVIDENDOS POR MES</div>
+          <ResponsiveContainer width="100%" height={250}>
             <BarChart data={dividendosData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
@@ -1329,9 +1330,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
       {/* ── VENTAS ── */}
       {ventaTickers.length > 0 && (
-        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#4aaeff", marginBottom: "10px" }}>G/L DE VENTAS POR MES</div>
-          <ResponsiveContainer width="100%" height={200}>
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#4aaeff", marginBottom: "10px" }}>G/L DE VENTAS POR MES</div>
+          <ResponsiveContainer width="100%" height={250}>
             <BarChart data={ventasData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
@@ -1346,9 +1347,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
       {/* ── PIE CHART ── */}
       {pieData.length > 0 && (
-        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "4px" }}>DISTRIBUCIÓN DEL PORTAFOLIO</div>
-          <ResponsiveContainer width="100%" height={200}>
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "4px" }}>DISTRIBUCIÓN DEL PORTAFOLIO</div>
+          <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie data={pieData} cx="50%" cy="50%" outerRadius={70} dataKey="value" labelLine={false} label={PieLabel}>
                 {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
@@ -1362,10 +1363,10 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       {/* ── VALOR POR ACTIVO ── */}
       {barData.length > 0 && (() => {
         const sortedBar = [...barData].sort((a, b) => b.valor - a.valor);
-        const barHeight = Math.max(120, sortedBar.length * 38);
+        const barHeight = Math.max(isMobile ? 120 : 250, sortedBar.length * 38);
         return (
-          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-            <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
+            <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
             <ResponsiveContainer width="100%" height={barHeight}>
               <BarChart layout="vertical" data={sortedBar} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
                 <XAxis type="number" hide />
@@ -1381,6 +1382,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
         );
       })()}
+      
+      </div>
     </div>
   );
 
@@ -1637,6 +1640,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           {tab === "home" && <HomeScreen />}
           {tab === "tabla" && <TablaScreen />}
           {tab === "resumen" && <ResumenScreen />}
+          {tab === "graficos" && <GraficosScreen />}
           {tab === "ai" && <AIScreen />}
         </div>
       </div>
