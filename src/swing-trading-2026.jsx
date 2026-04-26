@@ -1403,8 +1403,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       )}
       <div style={{ padding: "16px 20px 12px", paddingTop: "calc(16px + env(safe-area-inset-top))", borderBottom: "1px solid #0f1a1a", flexShrink: 0 }}>
         <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866" }}>◈ SWING TRADING</div>
-        <div style={{ fontSize: "20px", fontWeight: "700", color: "#fff" }}>
+        <div style={{ fontSize: "20px", fontWeight: "700", color: "#fff", marginBottom: "12px" }}>
           {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : "Análisis AI"}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <button onClick={updatePrices} disabled={updatingPrices || portfolio.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px", background: updatingPrices ? "#1a2a1a" : "#0a1f12", border: "1px solid #00ff8844", borderRadius: "8px", padding: "8px 12px", color: updatingPrices ? "#9e968f" : "#00ff88", fontSize: "10px", fontFamily: "inherit", cursor: updatingPrices || portfolio.length === 0 ? "default" : "pointer", transition: "all 0.2s" }}>
+            <span style={{ display: "inline-block", transform: updatingPrices ? "rotate(180deg)" : "none", transition: "transform 0.5s" }}>🔄</span>
+            {updatingPrices ? "CARGANDO..." : "ACTUALIZAR PRECIOS"}
+          </button>
+          <div style={{ fontSize: "10px", color: "#00ff8866", letterSpacing: "2px" }}>YTD <span style={{ color: "#00ff88", fontWeight: "700", fontSize: "13px" }}>${ytd.toFixed(2)}</span></div>
         </div>
       </div>
       <YearSelector />
