@@ -447,6 +447,7 @@ export default function App() {
   const [updatingPrices, setUpdatingPrices] = useState(false);
   const [editTx, setEditTx] = useState(null); // { i, txId, type, field, label, value }
   const [editScriptUrl, setEditScriptUrl] = useState(false);
+  const [confirmPush, setConfirmPush] = useState(false);
   const fileRef = useRef();
 
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
@@ -1444,7 +1445,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             {syncStatus === "pulling" ? "⟳ CARGANDO..." : "↓ CARGAR SHEET"}
           </button>
           <button
-            onClick={pushToSheet}
+            onClick={() => setConfirmPush(true)}
             disabled={!scriptUrl || syncStatus === "pulling" || syncStatus === "pushing"}
             style={{ flex: 1, padding: "14px", background: syncStatus === "pushing" ? "#2a1a00" : "linear-gradient(135deg,#2a1a00,#4a3000)", border: "1px solid #ffd70044", borderRadius: "12px", color: scriptUrl ? "#ffd700" : "#445", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: scriptUrl ? "pointer" : "default", fontWeight: "700" }}>
             {syncStatus === "pushing" ? "⟳ GUARDANDO..." : "↑ GUARDAR EN SHEET"}
@@ -1524,6 +1525,20 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           }} 
           onClose={() => setEditTx(null)} 
         />
+      )}
+      {confirmPush && (
+        <div onClick={() => setConfirmPush(false)} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(4px)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px", background: "#111c1c", borderTop: "1px solid #ffd70044", border: !isMobile ? "1px solid #ffd70044" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box", textAlign: "center" }}>
+            <div style={{ fontSize: "14px", color: "#ffd700", marginBottom: "16px", fontWeight: "bold" }}>⚠️ ADVERTENCIA</div>
+            <div style={{ fontSize: "12px", color: "#c9c0b4", marginBottom: "24px", lineHeight: "1.6" }}>
+              ¿Estás seguro que quieres actualizar tu base de datos? Esto sobrescribirá la anterior guardada.
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => setConfirmPush(false)} style={{ flex: 1, padding: "15px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>CANCELAR</button>
+              <button onClick={() => { setConfirmPush(false); pushToSheet(); }} style={{ flex: 1, padding: "15px", background: "linear-gradient(135deg,#4a3000,#8a5a00)", border: "none", borderRadius: "12px", color: "#ffd700", fontSize: "13px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>ACEPTAR</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
