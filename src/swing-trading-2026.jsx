@@ -462,32 +462,39 @@ export default function App() {
     if (portfolio.length === 0) return;
     setUpdatingPrices(true);
     try {
-      const tickers = portfolio.map(s => s.ticker).join(",");
-      const targetUrl = encodeURIComponent(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${tickers}`);
-      const res = await fetch(`https://api.allorigins.win/raw?url=${targetUrl}`);
-      
-      if (!res.ok) throw new Error("Error en red al contactar Yahoo Finance");
-      
-      const json = await res.json();
-      const results = json?.quoteResponse?.result || [];
       const priceMap = {};
-      results.forEach(q => {
-        if (q.symbol && q.regularMarketPrice) {
-          priceMap[q.symbol] = q.regularMarketPrice;
-        }
-      });
-      
       let count = 0;
+
+      await Promise.all(portfolio.map(async (s) => {
+        try {
+          const targetUrl = encodeURIComponent(`https://query2.finance.yahoo.com/v8/finance/chart/${s.ticker}`);
+          const res = await fetch(`https://api.allorigins.win/raw?url=${targetUrl}`);
+          if (!res.ok) return;
+          const json = await res.json();
+          const price = json?.chart?.result?.[0]?.meta?.regularMarketPrice;
+          if (price) {
+            priceMap[s.ticker] = price;
+            count++;
+          }
+        } catch (err) {
+          console.error("Error obteniendo", s.ticker, err);
+        }
+      }));
+      
+      if (count === 0) {
+        showToast("✕ No se hallaron precios nuevos");
+        setUpdatingPrices(false);
+        return;
+      }
+      
       setPortfolio(prev => prev.map(s => {
         if (priceMap[s.ticker]) {
-          count++;
           return { ...s, price: priceMap[s.ticker] };
         }
         return s;
       }));
       
-      if (count > 0) showToast(`✓ ${count} precios actualizados`);
-      else showToast("✕ No se hallaron precios nuevos");
+      showToast(`✓ ${count} precios actualizados`);
     } catch (e) {
       console.error(e);
       showToast("✕ Error al actualizar precios");
