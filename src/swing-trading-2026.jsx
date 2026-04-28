@@ -663,6 +663,8 @@ export default function App() {
   const rendMensualData = computed.map((r, i) => ({
     mes: MONTHS_SHORT[i],
     totalGL: r.total ?? 0,
+    glTrading: r.t ?? 0,
+    glAcciones: r.a ?? 0,
     rendTrading: r.rendPct ?? 0,
     rendPortafolio: (totalPortfolioValue > 0 && r.total !== null) ? (r.total / totalPortfolioValue) * 100 : 0
   }));
@@ -1290,13 +1292,25 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               labelFormatter={(label) => `MES: ${label}`}
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
-                  const data = payload[0].payload;
+                  const d = payload[0].payload;
                   return (
-                    <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "10px", borderRadius: "8px" }}>
-                      <div style={{ fontSize: "10px", color: "#00ff88", fontWeight: "bold", marginBottom: "6px" }}>{label}</div>
-                      <div style={{ fontSize: "11px", color: "#fff", marginBottom: "4px" }}>Total G/L: <span style={{ color: data.totalGL >= 0 ? "#00ff88" : "#ff4455" }}>${data.totalGL.toFixed(2)}</span></div>
-                      <div style={{ fontSize: "9px", color: "#c9c0b4" }}>Rend. Trading: {data.rendTrading.toFixed(2)}%</div>
-                      <div style={{ fontSize: "9px", color: "#4aaeff" }}>Rend. Portafolio: {data.rendPortafolio.toFixed(2)}%</div>
+                    <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "12px 14px", borderRadius: "8px", minWidth: "180px" }}>
+                      <div style={{ fontSize: "10px", color: "#00ff88", fontWeight: "bold", marginBottom: "8px", letterSpacing: "1px" }}>{label}</div>
+                      <div style={{ fontSize: "11px", color: "#c9c0b4", marginBottom: "4px" }}>
+                        Total G/L: <span style={{ color: d.totalGL >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.totalGL.toFixed(2)}</span>
+                      </div>
+                      <div style={{ borderTop: "1px solid #1a2a2a", margin: "6px 0" }} />
+                      <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "3px" }}>
+                        📈 G/L Trading: <span style={{ color: "#aa88ff", fontWeight: "600" }}>${d.glTrading.toFixed(2)}</span>
+                        <span style={{ color: "#9e968f", marginLeft: "6px" }}>({d.rendTrading.toFixed(2)}%)</span>
+                      </div>
+                      <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "6px" }}>
+                        💰 G/L Acciones: <span style={{ color: "#ffd700", fontWeight: "600" }}>${d.glAcciones.toFixed(2)}</span>
+                      </div>
+                      <div style={{ borderTop: "1px solid #1a2a2a", margin: "6px 0" }} />
+                      <div style={{ fontSize: "9px", color: "#9e968f" }}>
+                        Rend. Portafolio: <span style={{ color: "#4aaeff" }}>{d.rendPortafolio.toFixed(2)}%</span>
+                      </div>
                     </div>
                   );
                 }
