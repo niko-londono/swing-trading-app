@@ -660,14 +660,20 @@ export default function App() {
     .filter(m => m.txs.length > 0 || m.tradeTxs.length > 0);
 
   // ── Gráficos Data ─────────────────────────────────────────────────
-  const rendMensualData = computed.map((r, i) => ({
-    mes: MONTHS_SHORT[i],
-    totalGL: r.total ?? 0,
-    glTrading: r.t ?? 0,
-    glAcciones: r.a ?? 0,
-    rendTrading: r.rendPct ?? 0,
-    rendPortafolio: (totalPortfolioValue > 0 && r.total !== null) ? (r.total / totalPortfolioValue) * 100 : 0
-  }));
+  const rendMensualData = computed.map((r, i) => {
+    const glDividendos = (r.accionesDetail || []).filter(d => d.tipo === "dividendo").reduce((s, d) => s + (d.monto || 0), 0);
+    const glVentas     = (r.accionesDetail || []).filter(d => d.tipo === "venta").reduce((s, d) => s + (d.monto || 0), 0);
+    return {
+      mes: MONTHS_SHORT[i],
+      totalGL: r.total ?? 0,
+      glTrading: r.t ?? 0,
+      glAcciones: r.a ?? 0,
+      glDividendos,
+      glVentas,
+      rendTrading: r.rendPct ?? 0,
+      rendPortafolio: (totalPortfolioValue > 0 && r.total !== null) ? (r.total / totalPortfolioValue) * 100 : 0,
+    };
+  });
 
   const dividendosData = computed.map((r, i) => {
     const obj = { mes: MONTHS_SHORT[i] };
@@ -1294,19 +1300,26 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 if (active && payload && payload.length) {
                   const d = payload[0].payload;
                   return (
-                    <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "12px 14px", borderRadius: "8px", minWidth: "180px" }}>
+                    <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "12px 14px", borderRadius: "8px", minWidth: "190px" }}>
                       <div style={{ fontSize: "10px", color: "#00ff88", fontWeight: "bold", marginBottom: "8px", letterSpacing: "1px" }}>{label}</div>
                       <div style={{ fontSize: "11px", color: "#c9c0b4", marginBottom: "4px" }}>
                         Total G/L: <span style={{ color: d.totalGL >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.totalGL.toFixed(2)}</span>
                       </div>
                       <div style={{ borderTop: "1px solid #1a2a2a", margin: "6px 0" }} />
-                      <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "3px" }}>
+                      <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "4px" }}>
                         📈 G/L Trading: <span style={{ color: "#aa88ff", fontWeight: "600" }}>${d.glTrading.toFixed(2)}</span>
                         <span style={{ color: "#9e968f", marginLeft: "6px" }}>({d.rendTrading.toFixed(2)}%)</span>
                       </div>
-                      <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "6px" }}>
-                        💰 G/L Acciones: <span style={{ color: "#ffd700", fontWeight: "600" }}>${d.glAcciones.toFixed(2)}</span>
-                      </div>
+                      {d.glDividendos !== 0 && (
+                        <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "4px" }}>
+                          💰 G/L Dividendos: <span style={{ color: "#ffd700", fontWeight: "600" }}>${d.glDividendos.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {d.glVentas !== 0 && (
+                        <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "4px" }}>
+                          📤 G/L Acciones: <span style={{ color: "#4aaeff", fontWeight: "600" }}>${d.glVentas.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div style={{ borderTop: "1px solid #1a2a2a", margin: "6px 0" }} />
                       <div style={{ fontSize: "9px", color: "#9e968f" }}>
                         Rend. Portafolio: <span style={{ color: "#4aaeff" }}>{d.rendPortafolio.toFixed(2)}%</span>
