@@ -11,7 +11,11 @@ const DEFAULT_GOAL = 750;
 const START_YEAR = 2026;
 const PIE_COLORS = ["#00e5ff", "#00ff88", "#ffd700", "#4aaeff", "#ff6b6b", "#aa88ff", "#ff8c00", "#ff4da6", "#c8ff00", "#ff9d5c", "#7effb2", "#c084fc"];
 
-const GOOGLE_APPS_SCRIPT_CODE = `/**
+const CATEGORIAS = ["ACCIONES", "ETF", "CRYPTO", "TRADING"];
+const CAT_COLORS = { ACCIONES: "#00ff88", ETF: "#4aaeff", CRYPTO: "#ffd700", TRADING: "#aa88ff" };
+const CAT_ICONS  = { ACCIONES: "📈", ETF: "🏦", CRYPTO: "₿", TRADING: "⚡" };
+
+ = `/**
  * Google Apps Script — Swing Trading App (Backend)
  *
  * INSTRUCCIONES:
@@ -654,6 +658,7 @@ export default function App() {
   const removeStock = (idx) => setPortfolio(prev => prev.filter((_, i) => i !== idx));
   const updateStockPrice = (idx, v) => setPortfolio(prev => prev.map((s, i) => i === idx ? { ...s, price: parseFloat(v) || s.price } : s));
   const updateStockShares = (idx, v) => setPortfolio(prev => prev.map((s, i) => i === idx ? { ...s, shares: parseFloat(v) || s.shares } : s));
+  const updateStockCategory = (idx, cat) => setPortfolio(prev => prev.map((s, i) => i === idx ? { ...s, categoria: cat } : s));
 
   const txHistory = computed
     .map((r, i) => ({ mes: MONTHS[i], mesIdx: i, txs: (r.accionesDetail || []), tradeTxs: (r.tradingDetail || []) }))
@@ -1194,6 +1199,31 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ fontSize: "16px", fontWeight: "700", color: isEmpty ? "#9e968f" : "#fff", letterSpacing: "1px" }}>{s.ticker}</span>
                     {isEmpty && <span style={{ fontSize: "7px", background: "#ff445522", color: "#ff4455", padding: "2px 6px", borderRadius: "4px", letterSpacing: "1px" }}>SIN ACCIONES</span>}
+                    {/* Category dropdown */}
+                    <select
+                      value={s.categoria || "ACCIONES"}
+                      onChange={e => updateStockCategory(idx, e.target.value)}
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        background: `${CAT_COLORS[s.categoria || "ACCIONES"]}18`,
+                        border: `1px solid ${CAT_COLORS[s.categoria || "ACCIONES"]}66`,
+                        borderRadius: "6px",
+                        color: CAT_COLORS[s.categoria || "ACCIONES"],
+                        fontSize: "8px",
+                        padding: "2px 6px",
+                        cursor: "pointer",
+                        fontFamily: "'Courier New',monospace",
+                        letterSpacing: "0.5px",
+                        appearance: "none",
+                        outline: "none",
+                      }}
+                    >
+                      {CATEGORIAS.map(cat => (
+                        <option key={cat} value={cat} style={{ background: "#0c1318", color: CAT_COLORS[cat] }}>
+                          {CAT_ICONS[cat]} {cat}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div style={{ fontSize: "10px", color: "#c9c0b4", marginTop: "2px" }}>{s.shares} acciones · ${s.price.toFixed(2)}/u</div>
                 </div>
@@ -1411,11 +1441,69 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         );
       })()}
       
+      {/* ── DISTRIBUCIÓN POR CATEGORÍA ── */}
+      {(() => {
+        const catGroups = {};
+        CATEGORIAS.forEach(cat => { catGroups[cat] = 0; });
+        portfolio.filter(s => s.shares > 0).forEach(s => {
+          const cat = s.categoria || "ACCIONES";
+          catGroups[cat] = (catGroups[cat] || 0) + s.shares * s.price;
+        });
+        if (cash > 0) catGroups["CASH"] = cash;
+        const total = Object.values(catGroups).reduce((a, b) => a + b, 0);
+        if (total === 0) return null;
+        const catData = [
+          ...CATEGORIAS.filter(c => catGroups[c] > 0).map(c => ({
+            name: `${CAT_ICONS[c]} ${c}`,
+            valor: parseFloat(catGroups[c].toFixed(2)),
+            pct: parseFloat(((catGroups[c] / total) * 100).toFixed(1)),
+            color: CAT_COLORS[c],
+          })),
+          ...(catGroups["CASH"] > 0 ? [{ name: "💵 CASH", valor: parseFloat(catGroups["CASH"].toFixed(2)), pct: parseFloat(((catGroups["CASH"] / total) * 100).toFixed(1)), color: "#00e5ff" }] : []),
+        ].sort((a, b) => b.valor - a.valor);
+        return (
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", gridColumn: isMobile ? "1" : "1 / -1" }}>
+            <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "16px" }}>DISTRIBUCIÓN POR CATEGORÍA</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", alignItems: "center" }}>
+              {/* Pie */}
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={catData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="valor" labelLine={false}
+                    label={({ midAngle, outerRadius, percent, name }) => {
+                      if (percent < 0.05) return null;
+                      const rad = Math.PI / 180;
+                      const x2 = Math.cos(-midAngle * rad);
+                      const y2 = Math.sin(-midAngle * rad);
+                      return <text x={110 + (outerRadius + 16) * x2} y={110 + (outerRadius + 16) * y2} fill="#c9c0b4" textAnchor={x2 > 0 ? "start" : "end"} dominantBaseline="central" fontSize={9}>{(percent * 100).toFixed(0)}%</text>;
+                    }}>
+                    {catData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} formatter={v => [`$${v.toFixed(2)}`]} />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Legend rows */}
+              <div>
+                {catData.map((cat, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#080d0f", borderRadius: "10px", marginBottom: "8px", borderLeft: `3px solid ${cat.color}` }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: cat.color, boxShadow: `0 0 6px ${cat.color}` }} />
+                      <span style={{ fontSize: "11px", color: "#c9c0b4", fontWeight: "600" }}>{cat.name}</span>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: "13px", fontWeight: "700", color: cat.color }}>${cat.valor.toFixed(2)}</div>
+                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{cat.pct}% del portafolio</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       </div>
     </div>
-  );
-
-  const AIScreen = () => (
+  ); = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
       <div style={{ background: "linear-gradient(135deg,#0a1628,#071a1a)", border: "1px solid #4af3", borderRadius: "18px", padding: "20px", marginBottom: "14px" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#4af", marginBottom: "8px" }}>⟁ ANÁLISIS AI · {activeYear}</div>
