@@ -1503,7 +1503,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
       </div>
     </div>
-  ); = () => (
+  );
+
+  const AIScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
       <div style={{ background: "linear-gradient(135deg,#0a1628,#071a1a)", border: "1px solid #4af3", borderRadius: "18px", padding: "20px", marginBottom: "14px" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#4af", marginBottom: "8px" }}>⟁ ANÁLISIS AI · {activeYear}</div>
