@@ -15,7 +15,7 @@ const CATEGORIAS = ["ACCIONES", "ETF", "CRYPTO", "TRADING"];
 const CAT_COLORS = { ACCIONES: "#00ff88", ETF: "#4aaeff", CRYPTO: "#ffd700", TRADING: "#aa88ff" };
 const CAT_ICONS  = { ACCIONES: "📈", ETF: "🏦", CRYPTO: "₿", TRADING: "⚡" };
 
- = `/**
+const GOOGLE_APPS_SCRIPT_CODE = `/**
  * Google Apps Script — Swing Trading App (Backend)
  *
  * INSTRUCCIONES:
