@@ -1469,12 +1469,12 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie data={catData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="valor" labelLine={false}
-                    label={({ midAngle, outerRadius, percent, name }) => {
+                    label={({ cx, cy, midAngle, outerRadius, percent }) => {
                       if (percent < 0.05) return null;
                       const rad = Math.PI / 180;
-                      const x2 = Math.cos(-midAngle * rad);
-                      const y2 = Math.sin(-midAngle * rad);
-                      return <text x={110 + (outerRadius + 16) * x2} y={110 + (outerRadius + 16) * y2} fill="#c9c0b4" textAnchor={x2 > 0 ? "start" : "end"} dominantBaseline="central" fontSize={9}>{(percent * 100).toFixed(0)}%</text>;
+                      const x = cx + (outerRadius + 18) * Math.cos(-midAngle * rad);
+                      const y = cy + (outerRadius + 18) * Math.sin(-midAngle * rad);
+                      return <text x={x} y={y} fill="#c9c0b4" textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={9}>{(percent * 100).toFixed(0)}%</text>;
                     }}>
                     {catData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
