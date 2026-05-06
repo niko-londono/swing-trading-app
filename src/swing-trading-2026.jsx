@@ -262,13 +262,23 @@ function AddTradingModal({ portfolioTickers, onSave, onClose }) {
   const [ticker, setTicker] = useState(portfolioTickers[0] || "");
   const [capital, setCapital] = useState("");
   const [ganancia, setGanancia] = useState("");
+  const [sharesV, setSharesV] = useState("");
+  const [pCompra, setPCompra] = useState("");
+  const [pVenta, setPVenta] = useState("");
   const pct = parseFloat(capital) > 0 && ganancia !== ""
     ? (parseFloat(ganancia) / parseFloat(capital)) * 100 : null;
-  const valid = ticker.trim() && parseFloat(capital) > 0 && ganancia !== "";
+
+  const hasVentaFields = parseFloat(sharesV) > 0 && parseFloat(pCompra) > 0 && parseFloat(pVenta) > 0;
+  const valid = ticker.trim() && parseFloat(capital) > 0 && ganancia !== "" && hasVentaFields;
+  const cashRecibido = hasVentaFields ? parseFloat(pVenta) * parseFloat(sharesV) : 0;
+  const invertido = hasVentaFields ? parseFloat(pCompra) * parseFloat(sharesV) : 0;
+  const ventaGL = hasVentaFields ? (parseFloat(pVenta) - parseFloat(pCompra)) * parseFloat(sharesV) : 0;
+  const ventaPct = invertido > 0 ? (ventaGL / invertido) * 100 : null;
+
   const isMobile = window.innerWidth < 768;
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #aa88ff44", border: !isMobile ? "1px solid #aa88ff44" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "22px 20px 40px" : "22px 20px", boxSizing: "border-box" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #aa88ff44", border: !isMobile ? "1px solid #aa88ff44" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "22px 20px 40px" : "22px 20px", boxSizing: "border-box", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#aa88ff", marginBottom: "16px" }}>AGREGAR OPERACIÓN DE TRADING</div>
         <div style={{ marginBottom: "12px" }}>
           <div style={labelSt}>ACCIÓN USADA COMO CAPITAL</div>
@@ -279,6 +289,24 @@ function AddTradingModal({ portfolioTickers, onSave, onClose }) {
             : <input type="text" placeholder="TQQQ" value={ticker} onChange={e => setTicker(e.target.value)} style={inputSt} />
           }
         </div>
+
+        {/* Sale fields — same as AGREGAR TX venta */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+          <div>
+            <div style={labelSt}>ACCIONES VENDIDAS</div>
+            <input type="number" step="0.00001" placeholder="5" value={sharesV} onChange={e => setSharesV(e.target.value)} style={inputSt} />
+          </div>
+          <div>
+            <div style={labelSt}>PRECIO COMPRA ($)</div>
+            <input type="number" step="0.01" placeholder="140.00" value={pCompra} onChange={e => setPCompra(e.target.value)} style={inputSt} />
+          </div>
+          <div>
+            <div style={labelSt}>PRECIO VENTA ($)</div>
+            <input type="number" step="0.01" placeholder="155.00" value={pVenta} onChange={e => setPVenta(e.target.value)} style={inputSt} />
+          </div>
+        </div>
+
+        {/* Trading G/L fields */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
           <div>
             <div style={labelSt}>CAPITAL USADO ($)</div>
@@ -289,21 +317,33 @@ function AddTradingModal({ portfolioTickers, onSave, onClose }) {
             <input type="number" step="0.01" placeholder="10.00" value={ganancia} onChange={e => setGanancia(e.target.value)} style={inputSt} />
           </div>
         </div>
-        {pct !== null && (
-          <div style={{ background: parseFloat(ganancia) >= 0 ? "#071210" : "#1a0707", borderRadius: "10px", padding: "10px 14px", marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div>
-              <div style={{ fontSize: "8px", color: "#9e968f", letterSpacing: "1px", marginBottom: "2px" }}>RENDIMIENTO</div>
-              <div style={{ fontSize: "20px", fontWeight: "700", color: parseFloat(ganancia) >= 0 ? "#00ff88" : "#ff4455" }}>{pct.toFixed(2)}%</div>
+
+        {/* Preview summary */}
+        {(pct !== null || hasVentaFields) && (
+          <div style={{ background: parseFloat(ganancia) >= 0 ? "#071210" : "#1a0707", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "4px", textAlign: "center" }}>
+              {[
+                { l: "CAPITAL", v: fmt(parseFloat(capital) || 0), c: "#c9c0b4" },
+                { l: "G/L", v: fmt(parseFloat(ganancia) || 0), c: parseFloat(ganancia) >= 0 ? "#00ff88" : "#ff4455" },
+                { l: "REND.", v: pct !== null ? `${pct.toFixed(2)}%` : "—", c: pct >= 0 ? "#00ff88" : "#ff4455" },
+                { l: "CASH REC.", v: fmt(cashRecibido), c: "#00e5ff" },
+              ].map(({ l, v, c }) => (
+                <div key={l}>
+                  <div style={{ fontSize: "6px", color: "#9e968f", letterSpacing: "1px", marginBottom: "4px" }}>{l}</div>
+                  <div style={{ fontSize: "11px", color: c, fontWeight: "700" }}>{v}</div>
+                </div>
+              ))}
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "8px", color: "#9e968f", letterSpacing: "1px", marginBottom: "2px" }}>CASH + </div>
-              <div style={{ fontSize: "16px", fontWeight: "700", color: "#00e5ff" }}>{fmt(parseFloat(ganancia) || 0)}</div>
-            </div>
+            {hasVentaFields && (
+              <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px", textAlign: "center", borderTop: "1px solid #1a2a2a", paddingTop: "6px" }}>
+                Se descontarán <span style={{ color: "#aa88ff" }}>{parseFloat(sharesV)} acciones</span> de {ticker.toUpperCase()} del portafolio
+              </div>
+            )}
           </div>
         )}
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={onClose} style={{ flex: 1, padding: "14px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>Cancelar</button>
-          <button disabled={!valid} onClick={() => { onSave({ id: uid(), tipo: "trading", ticker: ticker.toUpperCase().trim(), capital: parseFloat(capital), ganancia: parseFloat(ganancia) }); onClose(); }}
+          <button disabled={!valid} onClick={() => { onSave({ id: uid(), tipo: "trading", ticker: ticker.toUpperCase().trim(), capital: parseFloat(capital), ganancia: parseFloat(ganancia), sharesVendidas: parseFloat(sharesV), precioCompra: parseFloat(pCompra), precioVenta: parseFloat(pVenta), cashRecibido: parseFloat((parseFloat(pVenta) * parseFloat(sharesV)).toFixed(2)) }); onClose(); }}
             style={{ flex: 2, padding: "14px", background: valid ? "linear-gradient(135deg,#1a0a2a,#3a1a5a)" : "#1a2a2a", border: valid ? "1px solid #aa88ff55" : "none", borderRadius: "12px", color: valid ? "#aa88ff" : "#556", fontSize: "13px", fontFamily: "inherit", cursor: valid ? "pointer" : "default", fontWeight: "700" }}>
             REGISTRAR
           </button>
@@ -537,13 +577,32 @@ export default function App() {
       return { ...prev, [activeYear]: yd };
     });
     // G/L Trading gain → cash
-    setCash(prev => parseFloat((prev + tx.ganancia).toFixed(2)));
+    const cashRec = tx.cashRecibido ?? (tx.ganancia || 0);
+    setCash(prev => parseFloat((prev + cashRec).toFixed(2)));
+    // Deduct shares from portfolio (same as venta)
+    if (tx.sharesVendidas && tx.sharesVendidas > 0) {
+      const mes = MONTHS[monthIdx];
+      setPortfolio(prev => prev.map(s => {
+        if (s.ticker !== tx.ticker) return s;
+        return { ...s, shares: Math.max(0, parseFloat((s.shares - tx.sharesVendidas).toFixed(6))), history: [...(s.history || []), { tipo: "trading-venta", mes, year: activeYear, sharesVendidas: tx.sharesVendidas, precioVenta: tx.precioVenta, precioCompra: tx.precioCompra, ganancia: tx.ganancia, cashRecibido: cashRec }] };
+      }));
+    }
   };
 
   const removeTradingTx = (monthIdx, txId) => {
-    // Find tx to reverse cash
+    // Find tx to reverse cash and shares
     const tx = (data[monthIdx].tradingDetail || []).find(t => t.id === txId);
-    if (tx) setCash(prev => parseFloat((prev - tx.ganancia).toFixed(2)));
+    if (tx) {
+      const cashRec = tx.cashRecibido ?? (tx.ganancia || 0);
+      setCash(prev => parseFloat((prev - cashRec).toFixed(2)));
+      // Restore shares to portfolio
+      if (tx.sharesVendidas && tx.sharesVendidas > 0) {
+        setPortfolio(prev => prev.map(s => {
+          if (s.ticker !== tx.ticker) return s;
+          return { ...s, shares: parseFloat((s.shares + tx.sharesVendidas).toFixed(6)), history: (s.history || []).filter(h => !(h.tipo === "trading-venta" && h.sharesVendidas === tx.sharesVendidas && h.precioVenta === tx.precioVenta)) };
+        }));
+      }
+    }
     setAllData(prev => {
       const yd = (prev[activeYear] ?? emptyYear()).map(r => ({ ...r, tradingDetail: [...(r.tradingDetail || [])] }));
       yd[monthIdx].tradingDetail = yd[monthIdx].tradingDetail.filter(t => t.id !== txId);
@@ -709,7 +768,7 @@ export default function App() {
         const tSum = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (r.trading === "" ? "" : r.trading);
         const cSum = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (r.capital === "" ? "" : r.capital);
         const aSum = (r.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
-        const tradeDet = td.map(d => `TRADE ${d.ticker} cap$${d.capital} gl$${d.ganancia}`).join(" | ");
+        const tradeDet = td.map(d => `TRADE ${d.ticker} cap$${d.capital} gl$${d.ganancia}${d.sharesVendidas ? ` x${d.sharesVendidas} compra$${d.precioCompra} venta$${d.precioVenta} cash$${d.cashRecibido || ""}` : ""}`).join(" | ");
         const accDet = (r.accionesDetail || []).map(d =>
           d.tipo === "dividendo" ? `DIVIDENDO ${d.ticker} $${d.monto}` :
             d.tipo === "compra" ? `COMPRA ${d.ticker} x${d.shares} @$${d.precioCompra}` :
@@ -751,8 +810,12 @@ export default function App() {
               const row = rows[r] || [];
               const tradingDetail = [];
               if (row[4]) String(row[4]).split(" | ").forEach(p => {
-                const m = p.match(/TRADE (\S+) cap\$([0-9.]+) gl\$([0-9.-]+)/);
-                if (m) tradingDetail.push({ id: uid(), tipo: "trading", ticker: m[1], capital: parseFloat(m[2]), ganancia: parseFloat(m[3]) });
+                const m = p.match(/TRADE (\S+) cap\$([0-9.]+) gl\$([0-9.-]+)(?:\s+x([0-9.]+)\s+compra\$([0-9.]+)\s+venta\$([0-9.]+)\s+cash\$([0-9.]*))?/);
+                if (m) {
+                  const entry = { id: uid(), tipo: "trading", ticker: m[1], capital: parseFloat(m[2]), ganancia: parseFloat(m[3]) };
+                  if (m[4]) { entry.sharesVendidas = parseFloat(m[4]); entry.precioCompra = parseFloat(m[5]); entry.precioVenta = parseFloat(m[6]); entry.cashRecibido = m[7] ? parseFloat(m[7]) : 0; }
+                  tradingDetail.push(entry);
+                }
               });
               const accionesDetail = [];
               if (row[5]) String(row[5]).split(" | ").forEach(p => {
@@ -926,6 +989,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   // Trading detail card
   const TradeCard = ({ tx, onRemove }) => {
     const pct = (tx.capital > 0) ? (tx.ganancia / tx.capital) * 100 : null;
+    const hasVenta = tx.sharesVendidas && tx.sharesVendidas > 0;
     return (
       <div style={{ background: "#080f0f", borderRadius: "10px", padding: "10px 12px", marginBottom: "6px", borderLeft: "2px solid #aa88ff66" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -934,14 +998,32 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <span style={{ fontSize: "7px", letterSpacing: "1px", color: "#aa88ff", background: "#aa88ff18", padding: "2px 6px", borderRadius: "4px" }}>TRADING</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "13px", fontWeight: "700", color: tx.ganancia >= 0 ? "#00ff88" : "#ff4455" }}>{fmt(tx.ganancia)}</span>
             {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", color: "#ff445566", fontSize: "12px", cursor: "pointer", padding: "0 2px" }}>✕</button>}
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "4px", marginTop: "8px" }}>
+        {/* Venta details row */}
+        {hasVenta && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "4px", marginTop: "8px" }}>
+            {[
+              { l: "ACCIONES", v: `${tx.sharesVendidas}` },
+              { l: "COMPRA", v: `$${tx.precioCompra}` },
+              { l: "VENTA", v: `$${tx.precioVenta}` },
+              { l: "REND.", v: pct !== null ? `${pct.toFixed(1)}%` : "—", c: pct >= 0 ? "#00ff88" : "#ff4455" },
+            ].map(({ l, v, c }) => (
+              <div key={l} style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "6px", color: "#9e968f", letterSpacing: "1px" }}>{l}</div>
+                <div style={{ fontSize: "10px", color: c || "#c9c0b4", fontWeight: "600", marginTop: "2px" }}>{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Capital / G/L / Rend row */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "4px", marginTop: "6px", borderTop: hasVenta ? "1px solid #1a2a2a" : "none", paddingTop: hasVenta ? "6px" : "8px" }}>
           {[
             { l: "CAPITAL", v: fmt(tx.capital) },
             { l: "G/L", v: fmt(tx.ganancia), c: tx.ganancia >= 0 ? "#00ff88" : "#ff4455" },
-            { l: "REND.", v: pct !== null ? `${pct.toFixed(2)}%` : "—", c: pct >= 0 ? "#00ff88" : "#ff4455" },
+            { l: "REND. CAPITAL", v: pct !== null ? `${pct.toFixed(2)}%` : "—", c: pct >= 0 ? "#00ff88" : "#ff4455" },
           ].map(({ l, v, c }) => (
             <div key={l} style={{ textAlign: "center" }}>
               <div style={{ fontSize: "6px", color: "#9e968f", letterSpacing: "1px" }}>{l}</div>
