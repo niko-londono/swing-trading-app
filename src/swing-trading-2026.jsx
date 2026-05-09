@@ -1091,7 +1091,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>REND. % POR MES</div>
         <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: "55px" }}>
           {computed.map((r, i) => {
-            const h = r.rendPct !== null ? Math.max(4, (Math.abs(r.rendPct) / 12) * 55) : 3;
+            const h = r.rendPct !== null ? Math.min(45, Math.max(4, (Math.abs(r.rendPct) / 12) * 45)) : 3;
             const col = pctColor(r.rendPct);
             return (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
