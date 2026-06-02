@@ -492,6 +492,21 @@ export default function App() {
   const [editTx, setEditTx] = useState(null); // { i, txId, type, field, label, value }
   const [editScriptUrl, setEditScriptUrl] = useState(false);
   const [confirmPush, setConfirmPush] = useState(false);
+  const [unrealized, setUnrealized] = useState(() => {
+    try {
+      const saved = localStorage.getItem("swingUnrealized");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [editUnrealized, setEditUnrealized] = useState(null); // { year, field, label, value }
+  const [annualChartMode, setAnnualChartMode] = useState("usd"); // 'usd' | 'pct'
+
+  useEffect(() => {
+    localStorage.setItem("swingUnrealized", JSON.stringify(unrealized));
+  }, [unrealized]);
+
   const fileRef = useRef();
 
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
@@ -789,6 +804,16 @@ export default function App() {
     wsP["!cols"] = [{ wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 70 }];
     XLSX.utils.book_append_sheet(wb, wsP, "Portafolio");
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["CASH"], [cash]]), "Cash");
+
+    // Add Unrealized sheet
+    const unrealizedDataRows = [
+      ["AÑO", "UNREALIZED ($)", "UNREALIZED (%)"],
+      ...Object.entries(unrealized).map(([yr, val]) => [parseInt(yr), val?.usd || 0, val?.pct || 0])
+    ];
+    const wsU = XLSX.utils.aoa_to_sheet(unrealizedDataRows);
+    wsU["!cols"] = [{ wch: 10 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsU, "Unrealized");
+
     XLSX.writeFile(wb, "SwingTrading_Backup.xlsx");
     showToast("✅ Exportado correctamente");
   };
@@ -800,7 +825,7 @@ export default function App() {
     reader.onload = (ev) => {
       try {
         const wb = XLSX.read(ev.target.result, { type: "binary" });
-        const newAllData = {}, newPortfolio = []; let newCash = 0;
+        const newAllData = {}, newPortfolio = []; let newCash = 0; let importedUnrealized = {};
         wb.SheetNames.forEach(name => {
           if (name.startsWith("Trading_")) {
             const yr = parseInt(name.replace("Trading_", "")); if (isNaN(yr)) return;
@@ -842,9 +867,23 @@ export default function App() {
             }
           }
           if (name === "Cash") { const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1 }); if (rows[1] && rows[1][0]) newCash = parseFloat(rows[1][0]) || 0; }
+          if (name === "Unrealized") {
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1 });
+            for (let r = 1; r < rows.length; r++) {
+              const row = rows[r]; if (!row || row[0] === undefined) continue;
+              const yr = parseInt(row[0]);
+              if (!isNaN(yr)) {
+                importedUnrealized[yr] = {
+                  usd: parseFloat(row[1]) || 0,
+                  pct: parseFloat(row[2]) || 0
+                };
+              }
+            }
+          }
         });
         if (!Object.keys(newAllData).length) { showToast("⚠️ Archivo no reconocido"); return; }
         setAllData(newAllData); setPortfolio(newPortfolio); setCash(newCash);
+        if (Object.keys(importedUnrealized).length) setUnrealized(importedUnrealized);
         setActiveYear(Math.min(...Object.keys(newAllData).map(Number)));
         setTab("home");
         showToast(`✅ Importado: ${Object.keys(newAllData).length} año(s)`);
@@ -854,8 +893,7 @@ export default function App() {
     e.target.value = "";
   };
 
-  // ── Google Sheets Sync ────────────────────────────────────────────
-  const getAppSnapshot = () => ({ allData, portfolio, cash, goal });
+  const getAppSnapshot = () => ({ allData, portfolio, cash, goal, unrealized });
 
   const loadSnapshot = (snap) => {
     if (snap.allData && Object.keys(snap.allData).length) {
@@ -865,6 +903,7 @@ export default function App() {
     if (snap.portfolio) setPortfolio(snap.portfolio);
     if (typeof snap.cash === "number") setCash(snap.cash);
     if (typeof snap.goal === "number") setGoal(snap.goal);
+    if (snap.unrealized) setUnrealized(snap.unrealized);
   };
 
   const pullFromSheet = async () => {
@@ -1387,9 +1426,180 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     </div>
   );
 
-  const GraficosScreen = () => (
-    <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", alignItems: "start" }}>
+  const GraficosScreen = () => {
+    const annualSummaryData = Object.keys(allData).map(yrStr => {
+      const yr = parseInt(yrStr);
+      const months = allData[yr] || [];
+      
+      let totalTradingGain = 0;
+      let totalTradingCapital = 0;
+      let totalRealizedGain = 0;
+      
+      months.forEach(row => {
+        const td = row.tradingDetail || [];
+        const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? 0 : +row.trading);
+        const c = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (row.capital === "" ? 0 : +row.capital);
+        const a = (row.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
+        
+        totalTradingGain += t;
+        totalTradingCapital += c;
+        totalRealizedGain += (t + a);
+      });
+      
+      const tradingPct = totalTradingCapital > 0 ? (totalTradingGain / totalTradingCapital) * 100 : 0;
+      
+      // Unrealized values
+      const unrealizedUSD = unrealized[yr]?.usd || 0;
+      const unrealizedPct = unrealized[yr]?.pct || 0;
+      
+      // Realized percentage: relative to totalPortfolioValue
+      const realizedPct = totalPortfolioValue > 0 ? (totalRealizedGain / totalPortfolioValue) * 100 : 0;
+      
+      return {
+        year: yr,
+        tradingUSD: parseFloat(totalTradingGain.toFixed(2)),
+        tradingPct: parseFloat(tradingPct.toFixed(2)),
+        unrealizedUSD: parseFloat(unrealizedUSD.toFixed(2)),
+        unrealizedPct: parseFloat(unrealizedPct.toFixed(2)),
+        realizedUSD: parseFloat(totalRealizedGain.toFixed(2)),
+        realizedPct: parseFloat(realizedPct.toFixed(2))
+      };
+    }).sort((a, b) => a.year - b.year);
+
+    const chartData = annualSummaryData.map(d => ({
+      year: String(d.year),
+      Trading: annualChartMode === "usd" ? d.tradingUSD : d.tradingPct,
+      Unrealized: annualChartMode === "usd" ? d.unrealizedUSD : d.unrealizedPct,
+      Realized: annualChartMode === "usd" ? d.realizedUSD : d.realizedPct,
+      raw: d
+    }));
+
+    return (
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        
+        {/* ── RESUMEN ANUAL ── */}
+        <div style={{ background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+            <div>
+              <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>◈ RESUMEN DE RENDIMIENTO ANUAL</div>
+              <div style={{ fontSize: "10px", color: "#9e968f" }}>Trading vs Unrealized (manual) vs Realized</div>
+            </div>
+            
+            {/* Toggle USD / PCT */}
+            <div style={{ display: "flex", gap: "4px", background: "#080d0f", padding: "4px", borderRadius: "8px", border: "1px solid #1a2a2a" }}>
+              <button 
+                onClick={() => setAnnualChartMode("usd")} 
+                style={{ background: annualChartMode === "usd" ? "#00ff8818" : "none", border: "none", borderRadius: "6px", color: annualChartMode === "usd" ? "#00ff88" : "#9e968f", fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}
+              >
+                USD ($)
+              </button>
+              <button 
+                onClick={() => setAnnualChartMode("pct")} 
+                style={{ background: annualChartMode === "pct" ? "#00ff8818" : "none", border: "none", borderRadius: "6px", color: annualChartMode === "pct" ? "#00ff88" : "#9e968f", fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}
+              >
+                Porcentaje (%)
+              </button>
+            </div>
+          </div>
+
+          {/* BarChart */}
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
+              <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#c9c0b4", fontWeight: "bold" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 9, fill: "#9e968f" }} axisLine={false} tickLine={false} />
+              <Tooltip
+                cursor={{ fill: "#1a2a2a" }}
+                contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }}
+                itemStyle={{ color: "#d4ccbf" }}
+                labelStyle={{ color: "#00ff88", marginBottom: "4px" }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const raw = payload[0].payload.raw;
+                    return (
+                      <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "12px 14px", borderRadius: "8px", minWidth: "220px" }}>
+                        <div style={{ fontSize: "11px", color: "#00ff88", fontWeight: "bold", marginBottom: "8px", letterSpacing: "1px" }}>AÑO {label}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <div style={{ fontSize: "10px", color: "#c9c0b4" }}>
+                            ⚡ Trading: <span style={{ color: "#aa88ff", fontWeight: "700" }}>${raw.tradingUSD.toFixed(2)}</span>
+                            <span style={{ color: "#9e968f", marginLeft: "6px" }}>({raw.tradingPct.toFixed(2)}%)</span>
+                          </div>
+                          <div style={{ fontSize: "10px", color: "#c9c0b4" }}>
+                            🏦 Unrealized: <span style={{ color: "#ffd700", fontWeight: "700" }}>${raw.unrealizedUSD.toFixed(2)}</span>
+                            <span style={{ color: "#9e968f", marginLeft: "6px" }}>({raw.unrealizedPct.toFixed(2)}%)</span>
+                          </div>
+                          <div style={{ borderTop: "1px solid #1a2a2a", margin: "4px 0" }} />
+                          <div style={{ fontSize: "10px", color: "#c9c0b4" }}>
+                            📈 Realized (Total): <span style={{ color: "#00ff88", fontWeight: "700" }}>${raw.realizedUSD.toFixed(2)}</span>
+                            <span style={{ color: "#9e968f", marginLeft: "6px" }}>({raw.realizedPct.toFixed(2)}%)</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Bar dataKey="Trading" fill="#aa88ff" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Unrealized" fill="#ffd700" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Realized" fill="#00ff88" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+
+          {/* Table */}
+          <div style={{ marginTop: "20px", overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", color: "#c9c0b4", fontSize: "11px", fontFamily: "inherit" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #1a2a2a", textAlign: "left" }}>
+                  <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>AÑO</th>
+                  <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>TRADING</th>
+                  <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>UNREALIZED (MANUAL)</th>
+                  <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>REALIZED (TOTAL)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {annualSummaryData.map((d) => (
+                  <tr key={d.year} style={{ borderBottom: "1px solid #0f1a1a", background: d.year === activeYear ? "#00ff8804" : "none" }}>
+                    <td style={{ padding: "12px 8px", fontWeight: "bold", color: "#fff" }}>
+                      {d.year} {d.year === activeYear && <span style={{ fontSize: "8px", color: "#00ff88", marginLeft: "4px", background: "#00ff8815", padding: "2px 6px", borderRadius: "4px" }}>ACTIVO</span>}
+                    </td>
+                    <td style={{ padding: "12px 8px" }}>
+                      <span style={{ color: d.tradingUSD >= 0 ? "#fff" : "#ff4455", fontWeight: "600" }}>${d.tradingUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</span>
+                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.tradingPct.toFixed(2)}%</div>
+                    </td>
+                    
+                    {/* Unrealized Editable */}
+                    <td style={{ padding: "12px 8px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div>
+                          <div 
+                            onClick={() => setEditUnrealized({ year: d.year, field: "usd", label: `${d.year} · UNREALIZED ($)`, value: d.unrealizedUSD })}
+                            style={{ color: "#ffd700", fontWeight: "600", cursor: "pointer", borderBottom: "1px dashed #ffd70055", display: "inline-block" }}
+                          >
+                            ${d.unrealizedUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                          </div>
+                          <div 
+                            onClick={() => setEditUnrealized({ year: d.year, field: "pct", label: `${d.year} · UNREALIZED (%)`, value: d.unrealizedPct })}
+                            style={{ fontSize: "9px", color: "#ffd70099", marginTop: "2px", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
+                          >
+                            {d.unrealizedPct.toFixed(2)}%
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "9px", color: "#ffd70044" }}>✎</span>
+                      </div>
+                    </td>
+                    
+                    <td style={{ padding: "12px 8px" }}>
+                      <span style={{ color: d.realizedUSD >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.realizedUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</span>
+                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.realizedPct.toFixed(2)}%</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", alignItems: "start" }}>
         
         {/* ── RENDIMIENTO MENSUAL ── */}
         <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
@@ -1586,6 +1796,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       </div>
     </div>
   );
+};
 
   const AIScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
@@ -1709,6 +1920,23 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       {addTrade !== null && <AddTradingModal portfolioTickers={portfolioTickers} onSave={tx => handleAddTrading(addTrade, tx)} onClose={() => setAddTrade(null)} />}
       {editPrice !== null && portfolio[editPrice] && <InputModal label={`PRECIO · ${portfolio[editPrice].ticker}`} value={portfolio[editPrice].price} onSave={val => updateStockPrice(editPrice, val)} onClose={() => setEditPrice(null)} />}
       {editShares !== null && portfolio[editShares] && <InputModal label={`ACCIONES · ${portfolio[editShares].ticker}`} value={portfolio[editShares].shares} onSave={val => updateStockShares(editShares, val)} onClose={() => setEditShares(null)} />}
+      {editUnrealized && (
+        <InputModal
+          label={editUnrealized.label}
+          value={editUnrealized.value}
+          onSave={val => {
+            const numVal = parseFloat(val) || 0;
+            setUnrealized(prev => ({
+              ...prev,
+              [editUnrealized.year]: {
+                ...(prev[editUnrealized.year] || { usd: 0, pct: 0 }),
+                [editUnrealized.field]: numVal
+              }
+            }));
+          }}
+          onClose={() => setEditUnrealized(null)}
+        />
+      )}
       {editTx && (
         <InputModal 
           label={editTx.label} 
