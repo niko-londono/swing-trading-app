@@ -1432,21 +1432,26 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       const months = allData[yr] || [];
       
       let totalTradingGain = 0;
-      let totalTradingCapital = 0;
       let totalRealizedGain = 0;
       
+      const monthlyPcts = [];
       months.forEach(row => {
         const td = row.tradingDetail || [];
-        const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? 0 : +row.trading);
-        const c = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (row.capital === "" ? 0 : +row.capital);
+        const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? null : +row.trading);
+        const c = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (row.capital === "" ? null : +row.capital);
         const a = (row.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
         
-        totalTradingGain += t;
-        totalTradingCapital += c;
-        totalRealizedGain += (t + a);
+        totalTradingGain += (t || 0);
+        totalRealizedGain += ((t || 0) + a);
+        
+        if (t !== null && c !== null && c > 0) {
+          monthlyPcts.push((t / c) * 100);
+        }
       });
       
-      const tradingPct = totalTradingCapital > 0 ? (totalTradingGain / totalTradingCapital) * 100 : 0;
+      const tradingPct = monthlyPcts.length > 0
+        ? monthlyPcts.reduce((s, p) => s + p, 0) / monthlyPcts.length
+        : 0;
       
       // Unrealized values
       const unrealizedUSD = unrealized[yr]?.usd || 0;
@@ -1466,13 +1471,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       };
     }).sort((a, b) => a.year - b.year);
 
-    const chartData = annualSummaryData.map(d => ({
-      year: String(d.year),
-      Trading: annualChartMode === "usd" ? d.tradingUSD : d.tradingPct,
-      Unrealized: annualChartMode === "usd" ? d.unrealizedUSD : d.unrealizedPct,
-      Realized: annualChartMode === "usd" ? d.realizedUSD : d.realizedPct,
-      raw: d
-    }));
+    const activeData = annualSummaryData.find(d => d.year === activeYear) || { 
+      year: activeYear, 
+      tradingUSD: 0, 
+      tradingPct: 0, 
+      unrealizedUSD: 0, 
+      unrealizedPct: 0, 
+      realizedUSD: 0, 
+      realizedPct: 0 
+    };
 
     return (
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
@@ -1482,68 +1489,63 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
               <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>◈ RESUMEN DE RENDIMIENTO ANUAL</div>
-              <div style={{ fontSize: "10px", color: "#9e968f" }}>Trading vs Unrealized (manual) vs Realized</div>
-            </div>
-            
-            {/* Toggle USD / PCT */}
-            <div style={{ display: "flex", gap: "4px", background: "#080d0f", padding: "4px", borderRadius: "8px", border: "1px solid #1a2a2a" }}>
-              <button 
-                onClick={() => setAnnualChartMode("usd")} 
-                style={{ background: annualChartMode === "usd" ? "#00ff8818" : "none", border: "none", borderRadius: "6px", color: annualChartMode === "usd" ? "#00ff88" : "#9e968f", fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}
-              >
-                USD ($)
-              </button>
-              <button 
-                onClick={() => setAnnualChartMode("pct")} 
-                style={{ background: annualChartMode === "pct" ? "#00ff8818" : "none", border: "none", borderRadius: "6px", color: annualChartMode === "pct" ? "#00ff88" : "#9e968f", fontSize: "10px", padding: "6px 12px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit" }}
-              >
-                Porcentaje (%)
-              </button>
+              <div style={{ fontSize: "10px", color: "#9e968f" }}>Trading vs Unrealized (manual) vs Realized ({activeYear})</div>
             </div>
           </div>
 
-          {/* BarChart */}
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={chartData} margin={{ top: 15, right: 10, left: -20, bottom: 5 }}>
-              <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#c9c0b4", fontWeight: "bold" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 9, fill: "#9e968f" }} axisLine={false} tickLine={false} />
-              <Tooltip
-                cursor={{ fill: "#1a2a2a" }}
-                contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }}
-                itemStyle={{ color: "#d4ccbf" }}
-                labelStyle={{ color: "#00ff88", marginBottom: "4px" }}
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const raw = payload[0].payload.raw;
-                    return (
-                      <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "12px 14px", borderRadius: "8px", minWidth: "220px" }}>
-                        <div style={{ fontSize: "11px", color: "#00ff88", fontWeight: "bold", marginBottom: "8px", letterSpacing: "1px" }}>AÑO {label}</div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                          <div style={{ fontSize: "10px", color: "#c9c0b4" }}>
-                            ⚡ Trading: <span style={{ color: "#aa88ff", fontWeight: "700" }}>${raw.tradingUSD.toFixed(2)}</span>
-                            <span style={{ color: "#9e968f", marginLeft: "6px" }}>({raw.tradingPct.toFixed(2)}%)</span>
-                          </div>
-                          <div style={{ fontSize: "10px", color: "#c9c0b4" }}>
-                            🏦 Unrealized: <span style={{ color: "#ffd700", fontWeight: "700" }}>${raw.unrealizedUSD.toFixed(2)}</span>
-                            <span style={{ color: "#9e968f", marginLeft: "6px" }}>({raw.unrealizedPct.toFixed(2)}%)</span>
-                          </div>
-                          <div style={{ borderTop: "1px solid #1a2a2a", margin: "4px 0" }} />
-                          <div style={{ fontSize: "10px", color: "#c9c0b4" }}>
-                            📈 Realized (Total): <span style={{ color: "#00ff88", fontWeight: "700" }}>${raw.realizedUSD.toFixed(2)}</span>
-                            <span style={{ color: "#9e968f", marginLeft: "6px" }}>({raw.realizedPct.toFixed(2)}%)</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Bar dataKey="Trading" fill="#aa88ff" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Unrealized" fill="#ffd700" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Realized" fill="#00ff88" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {/* Card Layout */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+            
+            {/* CARD 1: AÑO */}
+            <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "12px", padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#9e968f", marginBottom: "8px", fontWeight: "600" }}>AÑO</div>
+              <div style={{ fontSize: "28px", fontWeight: "700", color: "#fff", lineHeight: 1 }}>{activeData.year}</div>
+              <div style={{ fontSize: "9px", color: "#00ff8877", marginTop: "8px", letterSpacing: "0.5px" }}>AÑO ACTIVO</div>
+            </div>
+
+            {/* CARD 2: TRADING */}
+            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>TRADING</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
+                ${activeData.tradingUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                {activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>prom.</span>
+              </div>
+            </div>
+
+            {/* CARD 3: UNREALIZED */}
+            <div style={{ background: "#080d0f", border: "1px solid #ffd70033", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #ffd700" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#ffd700", marginBottom: "8px", fontWeight: "600" }}>UNREALIZED (MANUAL)</div>
+              <div 
+                onClick={() => setEditUnrealized({ year: activeData.year, field: "usd", label: `${activeData.year} · UNREALIZED ($)`, value: activeData.unrealizedUSD })}
+                style={{ fontSize: "22px", fontWeight: "700", color: "#ffd700", lineHeight: 1, cursor: "pointer", borderBottom: "1px dashed #ffd70055", display: "inline-block" }}
+              >
+                ${activeData.unrealizedUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+              </div>
+              <div style={{ marginTop: "8px" }}>
+                <span 
+                  onClick={() => setEditUnrealized({ year: activeData.year, field: "pct", label: `${activeData.year} · UNREALIZED (%)`, value: activeData.unrealizedPct })}
+                  style={{ fontSize: "13px", color: "#ffd700cc", fontWeight: "500", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
+                >
+                  {activeData.unrealizedPct.toFixed(2)}%
+                </span>
+                <span style={{ fontSize: "11px", color: "#ffd70044", marginLeft: "6px" }}>✎</span>
+              </div>
+            </div>
+
+            {/* CARD 4: REALIZED */}
+            <div style={{ background: "#080d0f", border: "1px solid #00ff8833", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #00ff88" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#00ff88", marginBottom: "8px", fontWeight: "600" }}>REALIZED (TOTAL)</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.realizedUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
+                ${activeData.realizedUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                {activeData.realizedPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
+              </div>
+            </div>
+
+          </div>
 
           {/* Table */}
           <div style={{ marginTop: "20px", overflowX: "auto" }}>
@@ -1754,40 +1756,21 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           ...(catGroups["CASH"] > 0 ? [{ name: "💵 CASH", valor: parseFloat(catGroups["CASH"].toFixed(2)), pct: parseFloat(((catGroups["CASH"] / total) * 100).toFixed(1)), color: "#00e5ff" }] : []),
         ].sort((a, b) => b.valor - a.valor);
         return (
-          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", gridColumn: isMobile ? "1" : "1 / -1" }}>
-            <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "16px" }}>DISTRIBUCIÓN POR CATEGORÍA</div>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px", alignItems: "center" }}>
-              {/* Pie */}
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={catData} cx="50%" cy="50%" outerRadius={80} innerRadius={40} dataKey="valor" labelLine={false}
-                    label={({ cx, cy, midAngle, outerRadius, percent }) => {
-                      if (percent < 0.05) return null;
-                      const rad = Math.PI / 180;
-                      const x = cx + (outerRadius + 18) * Math.cos(-midAngle * rad);
-                      const y = cy + (outerRadius + 18) * Math.sin(-midAngle * rad);
-                      return <text x={x} y={y} fill="#c9c0b4" textAnchor={x > cx ? "start" : "end"} dominantBaseline="central" fontSize={9}>{(percent * 100).toFixed(0)}%</text>;
-                    }}>
-                    {catData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} formatter={v => [`$${v.toFixed(2)}`]} />
-                </PieChart>
-              </ResponsiveContainer>
-              {/* Legend rows */}
-              <div>
-                {catData.map((cat, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#080d0f", borderRadius: "10px", marginBottom: "8px", borderLeft: `3px solid ${cat.color}` }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: cat.color, boxShadow: `0 0 6px ${cat.color}` }} />
-                      <span style={{ fontSize: "11px", color: "#c9c0b4", fontWeight: "600" }}>{cat.name}</span>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ fontSize: "13px", fontWeight: "700", color: cat.color }}>${cat.valor.toFixed(2)}</div>
-                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{cat.pct}% del portafolio</div>
-                    </div>
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px", gridColumn: isMobile ? "1" : "1 / -1" }}>
+            <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "20px" }}>DISTRIBUCIÓN POR CATEGORÍA</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px" }}>
+              {catData.map((cat, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "#080d0f", borderRadius: "12px", borderLeft: `4px solid ${cat.color}`, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: cat.color, boxShadow: `0 0 6px ${cat.color}` }} />
+                    <span style={{ fontSize: "16px", color: "#fff", fontWeight: "600", letterSpacing: "0.5px" }}>{cat.name}</span>
                   </div>
-                ))}
-              </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "20px", fontWeight: "700", color: cat.color }}>${cat.valor.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "4px", fontWeight: "500" }}>{cat.pct}% del portafolio</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         );
