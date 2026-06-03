@@ -1481,6 +1481,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       realizedPct: 0 
     };
 
+    const rendAnualUSD = activeData.unrealizedUSD + activeData.realizedUSD;
+    const rendAnualPct = activeData.unrealizedPct + activeData.realizedPct;
+
     return (
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
         
@@ -1494,7 +1497,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
 
           {/* Card Layout */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: "16px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "16px", marginBottom: "20px" }}>
             
             {/* CARD 1: AÑO */}
             <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "12px", padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -1542,6 +1545,17 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               </div>
               <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
                 {activeData.realizedPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
+              </div>
+            </div>
+
+            {/* CARD 5: REND. ANUAL */}
+            <div style={{ background: "#080d0f", border: "1px solid #4aaeff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #4aaeff" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#4aaeff", marginBottom: "8px", fontWeight: "600" }}>REND. ANUAL</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: rendAnualUSD >= 0 ? "#4aaeff" : "#ff4455", lineHeight: 1 }}>
+                ${rendAnualUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                {rendAnualPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
               </div>
             </div>
 
@@ -1756,7 +1770,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           ...(catGroups["CASH"] > 0 ? [{ name: "💵 CASH", valor: parseFloat(catGroups["CASH"].toFixed(2)), pct: parseFloat(((catGroups["CASH"] / total) * 100).toFixed(1)), color: "#00e5ff" }] : []),
         ].sort((a, b) => b.valor - a.valor);
         return (
-          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px", gridColumn: isMobile ? "1" : "1 / -1" }}>
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px" }}>
             <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "20px" }}>DISTRIBUCIÓN POR CATEGORÍA</div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px" }}>
               {catData.map((cat, i) => (
