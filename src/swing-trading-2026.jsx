@@ -1469,6 +1469,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       let totalRealizedGain = 0;
       
       const monthlyPcts = [];
+      const monthlyCapitals = [];
       months.forEach(row => {
         const td = row.tradingDetail || [];
         const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? null : +row.trading);
@@ -1480,11 +1481,16 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         
         if (t !== null && c !== null && c > 0) {
           monthlyPcts.push((t / c) * 100);
+          monthlyCapitals.push(c);
         }
       });
       
       const tradingPct = monthlyPcts.length > 0
         ? monthlyPcts.reduce((s, p) => s + p, 0) / monthlyPcts.length
+        : 0;
+
+      const avgCapitalUSD = monthlyCapitals.length > 0
+        ? monthlyCapitals.reduce((s, c) => s + c, 0) / monthlyCapitals.length
         : 0;
       
       // Unrealized values
@@ -1498,6 +1504,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         year: yr,
         tradingUSD: parseFloat(totalTradingGain.toFixed(2)),
         tradingPct: parseFloat(tradingPct.toFixed(2)),
+        avgCapitalUSD: parseFloat(avgCapitalUSD.toFixed(2)),
         unrealizedUSD: parseFloat(unrealizedUSD.toFixed(2)),
         unrealizedPct: parseFloat(unrealizedPct.toFixed(2)),
         realizedUSD: parseFloat(totalRealizedGain.toFixed(2)),
@@ -1509,6 +1516,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       year: activeYear, 
       tradingUSD: 0, 
       tradingPct: 0, 
+      avgCapitalUSD: 0,
       unrealizedUSD: 0, 
       unrealizedPct: 0, 
       realizedUSD: 0, 
@@ -1546,8 +1554,16 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
                 ${activeData.tradingUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
               </div>
-              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                {activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>prom.</span>
+              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+                <span>{activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>prom.</span></span>
+                {activeData.avgCapitalUSD > 0 && (
+                  <span style={{ fontSize: "11px", color: "#aa88ff88" }}>·</span>
+                )}
+                {activeData.avgCapitalUSD > 0 && (
+                  <span style={{ fontSize: "11px", color: "#aa88ffaa" }}>
+                    ${activeData.avgCapitalUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>cap prom.</span>
+                  </span>
+                )}
               </div>
             </div>
 
@@ -1604,6 +1620,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>TRADING</th>
                   <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>UNREALIZED (MANUAL)</th>
                   <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>REALIZED (TOTAL)</th>
+                  <th style={{ padding: "10px 8px", color: "#4aaeff", fontWeight: "600", letterSpacing: "1px" }}>TOTAL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1641,6 +1658,18 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <td style={{ padding: "12px 8px" }}>
                       <span style={{ color: d.realizedUSD >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.realizedUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</span>
                       <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.realizedPct.toFixed(2)}%</div>
+                    </td>
+                    <td style={{ padding: "12px 8px" }}>
+                      {(() => {
+                        const total = d.unrealizedUSD + d.realizedUSD;
+                        const totalPct = d.unrealizedPct + d.realizedPct;
+                        return (
+                          <>
+                            <span style={{ color: total >= 0 ? "#4aaeff" : "#ff4455", fontWeight: "700" }}>${total.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</span>
+                            <div style={{ fontSize: "9px", color: "#4aaeff88", marginTop: "2px" }}>{totalPct.toFixed(2)}%</div>
+                          </>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))}
