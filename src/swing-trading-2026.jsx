@@ -1790,6 +1790,60 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         );
       })()}
 
+      {/* ── DISTRIBUCIÓN POR PLAZO ── */}
+      {(() => {
+        const plazoGroups = {
+          "LARGO PLAZO": 0,
+          "CORTO PLAZO": 0
+        };
+        portfolio.filter(s => s.shares > 0).forEach(s => {
+          const cat = s.categoria || "ACCIONES";
+          if (cat === "ETF" || cat === "CRYPTO") {
+            plazoGroups["LARGO PLAZO"] += s.shares * s.price;
+          } else {
+            plazoGroups["CORTO PLAZO"] += s.shares * s.price;
+          }
+        });
+        if (cash > 0) {
+          plazoGroups["CORTO PLAZO"] += cash;
+        }
+        const total = plazoGroups["LARGO PLAZO"] + plazoGroups["CORTO PLAZO"];
+        if (total === 0) return null;
+        const plazoData = [
+          {
+            name: "⏳ LARGO PLAZO",
+            valor: parseFloat(plazoGroups["LARGO PLAZO"].toFixed(2)),
+            pct: parseFloat(((plazoGroups["LARGO PLAZO"] / total) * 100).toFixed(1)),
+            color: "#4aaeff",
+          },
+          {
+            name: "⚡ CORTO PLAZO",
+            valor: parseFloat(plazoGroups["CORTO PLAZO"].toFixed(2)),
+            pct: parseFloat(((plazoGroups["CORTO PLAZO"] / total) * 100).toFixed(1)),
+            color: "#00ff88",
+          }
+        ].filter(p => p.valor > 0).sort((a, b) => b.valor - a.valor);
+        return (
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px" }}>
+            <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "20px" }}>DISTRIBUCIÓN POR PLAZO</div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px" }}>
+              {plazoData.map((plazo, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "#080d0f", borderRadius: "12px", borderLeft: `4px solid ${plazo.color}`, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: plazo.color, boxShadow: `0 0 6px ${plazo.color}` }} />
+                    <span style={{ fontSize: "16px", color: "#fff", fontWeight: "600", letterSpacing: "0.5px" }}>{plazo.name}</span>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "20px", fontWeight: "700", color: plazo.color }}>${plazo.valor.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "4px", fontWeight: "500" }}>{plazo.pct}% del portafolio</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       </div>
     </div>
   );
