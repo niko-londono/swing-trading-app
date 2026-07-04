@@ -104,7 +104,7 @@ function writeReadableView(ss, data) {
       if (!vs) vs = ss.insertSheet(sheetName);
       vs.clear();
 
-      var rows = [["MES", "G/L TRADING", "CAPITAL", "G/L ACCIONES", "TOTAL"]];
+      var rows = [["MES", "G/L TRADING", "CAPITAL", "G/L ACCIONES", "IMPUESTOS MARGIN", "TOTAL"]];
       var months = data.allData[yr];
 
       for (var m = 0; m < 12; m++) {
@@ -119,8 +119,9 @@ function writeReadableView(ss, data) {
         var aSum = (r.accionesDetail || [])
           .filter(function(d){ return d.tipo !== "compra"; })
           .reduce(function(s,d){ return s + (d.monto || 0); }, 0);
-        var total = (tSum === "" ? 0 : tSum) + aSum;
-        rows.push([MONTHS[m], tSum, cSum, aSum || "", total || ""]);
+        var margin = r.margin === "" || r.margin === undefined ? 0 : parseFloat(r.margin);
+        var total = (tSum === "" ? 0 : tSum) + aSum - margin;
+        rows.push([MONTHS[m], tSum, cSum, aSum || "", margin ? -margin : "", total || ""]);
       }
 
       vs.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
@@ -166,7 +167,7 @@ const downloadScript = () => {
 const uid = () => Math.random().toString(36).slice(2, 9);
 
 const emptyYear = () =>
-  Array(12).fill(null).map(() => ({ trading: "", capital: "", tradingDetail: [], accionesDetail: [] }));
+  Array(12).fill(null).map(() => ({ trading: "", capital: "", margin: "", tradingDetail: [], accionesDetail: [] }));
 
 const SEED_2026 = emptyYear();
 
@@ -579,6 +580,11 @@ export default function App() {
   const update = (i, field, val) => {
     setAllData(prev => {
       const yd = (prev[activeYear] ?? emptyYear()).map(r => ({ ...r }));
+      if (field === "margin") {
+        const oldVal = parseFloat(yd[i].margin) || 0;
+        const newVal = val === "" ? 0 : parseFloat(val) || 0;
+        setCash(prevCash => parseFloat((prevCash - (newVal - oldVal)).toFixed(2)));
+      }
       yd[i][field] = val === "" ? "" : parseFloat(val) || 0;
       return { ...prev, [activeYear]: yd };
     });
@@ -697,10 +703,11 @@ export default function App() {
     // Acciones: exclude compra from G/L
     const a = (row.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
     const hasAcc = (row.accionesDetail || []).filter(d => d.tipo !== "compra").length > 0;
-    const hasActivity = t !== null || hasAcc;
-    const total = hasActivity ? (t ?? 0) + a : null;
+    const margin = row.margin === "" || row.margin === undefined ? 0 : parseFloat(row.margin);
+    const hasActivity = t !== null || hasAcc || margin > 0;
+    const total = hasActivity ? (t ?? 0) + a - margin : null;
     const rendPct = (t !== null && c && c > 0) ? (t / c) * 100 : null;
-    return { ...row, total, rendPct, t, a, c, td };
+    return { ...row, total, rendPct, t, a, c, td, margin };
   });
 
   const ytd = computed.reduce((s, r) => r.total !== null ? s + r.total : s, 0);
@@ -749,6 +756,7 @@ export default function App() {
       glAcciones: r.a ?? 0,
       glDividendos,
       glVentas,
+      marginTax: r.margin ?? 0,
       rendTrading: r.rendPct ?? 0,
       rendPortafolio: (totalPortfolioValue > 0 && r.total !== null) ? (r.total / totalPortfolioValue) * 100 : 0,
     };
@@ -777,22 +785,24 @@ export default function App() {
   const exportExcel = () => {
     const wb = XLSX.utils.book_new();
     Object.entries(allData).sort().forEach(([yr, rows]) => {
-      const sheetData = [["MES", "G/L TRADING", "CAPITAL", "G/L ACCIONES", "DETALLE TRADING", "DETALLE ACCIONES"]];
+      const sheetData = [["MES", "G/L TRADING", "CAPITAL", "G/L ACCIONES", "IMPUESTOS MARGIN", "TOTAL", "DETALLE TRADING", "DETALLE ACCIONES"]];
       rows.forEach((r, i) => {
         const td = r.tradingDetail || [];
         const tSum = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (r.trading === "" ? "" : r.trading);
         const cSum = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (r.capital === "" ? "" : r.capital);
         const aSum = (r.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
+        const margin = r.margin === "" || r.margin === undefined ? 0 : parseFloat(r.margin);
+        const total = ((tSum === "" || tSum === null) ? 0 : tSum) + aSum - margin;
         const tradeDet = td.map(d => `TRADE ${d.ticker} cap$${d.capital} gl$${d.ganancia}${d.sharesVendidas ? ` x${d.sharesVendidas} compra$${d.precioCompra} venta$${d.precioVenta} cash$${d.cashRecibido || ""}` : ""}`).join(" | ");
         const accDet = (r.accionesDetail || []).map(d =>
           d.tipo === "dividendo" ? `DIVIDENDO ${d.ticker} $${d.monto}` :
             d.tipo === "compra" ? `COMPRA ${d.ticker} x${d.shares} @$${d.precioCompra}` :
               `VENTA ${d.ticker} x${d.sharesVendidas} compra$${d.precioCompra} venta$${d.precioVenta} G/L$${d.monto} cash$${d.cashRecibido || ""}`
         ).join(" | ");
-        sheetData.push([MONTHS[i], tSum, cSum, aSum || "", tradeDet, accDet]);
+        sheetData.push([MONTHS[i], tSum, cSum, aSum || "", margin ? -margin : "", total || "", tradeDet, accDet]);
       });
       const ws = XLSX.utils.aoa_to_sheet(sheetData);
-      ws["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 50 }, { wch: 70 }];
+      ws["!cols"] = [{ wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 50 }, { wch: 70 }];
       XLSX.utils.book_append_sheet(wb, ws, `Trading_${yr}`);
     });
     const portData = [
@@ -834,7 +844,12 @@ export default function App() {
             for (let r = 1; r <= 12; r++) {
               const row = rows[r] || [];
               const tradingDetail = [];
-              if (row[4]) String(row[4]).split(" | ").forEach(p => {
+              const hasMarginCol = row.length >= 8;
+              const tradeDetStr = hasMarginCol ? row[6] : row[4];
+              const accDetStr = hasMarginCol ? row[7] : row[5];
+              const margin = hasMarginCol && row[4] !== undefined && row[4] !== "" ? Math.abs(parseFloat(row[4])) : "";
+
+              if (tradeDetStr) String(tradeDetStr).split(" | ").forEach(p => {
                 const m = p.match(/TRADE (\S+) cap\$([0-9.]+) gl\$([0-9.-]+)(?:\s+x([0-9.]+)\s+compra\$([0-9.]+)\s+venta\$([0-9.]+)\s+cash\$([0-9.]*))?/);
                 if (m) {
                   const entry = { id: uid(), tipo: "trading", ticker: m[1], capital: parseFloat(m[2]), ganancia: parseFloat(m[3]) };
@@ -843,12 +858,12 @@ export default function App() {
                 }
               });
               const accionesDetail = [];
-              if (row[5]) String(row[5]).split(" | ").forEach(p => {
+              if (accDetStr) String(accDetStr).split(" | ").forEach(p => {
                 if (p.startsWith("DIVIDENDO")) { const m = p.match(/DIVIDENDO (\S+) \$([0-9.]+)/); if (m) accionesDetail.push({ id: uid(), tipo: "dividendo", ticker: m[1], monto: parseFloat(m[2]) }); }
                 else if (p.startsWith("COMPRA")) { const m = p.match(/COMPRA (\S+) x([0-9.]+) @\$([0-9.]+)/); if (m) accionesDetail.push({ id: uid(), tipo: "compra", ticker: m[1], shares: parseFloat(m[2]), precioCompra: parseFloat(m[3]), monto: 0 }); }
                 else if (p.startsWith("VENTA")) { const m = p.match(/VENTA (\S+) x([0-9.]+) compra\$([0-9.]+) venta\$([0-9.]+) G\/L\$([0-9.-]+)(?: cash\$([0-9.]+))?/); if (m) accionesDetail.push({ id: uid(), tipo: "venta", ticker: m[1], sharesVendidas: parseFloat(m[2]), precioCompra: parseFloat(m[3]), precioVenta: parseFloat(m[4]), monto: parseFloat(m[5]), cashRecibido: m[6] ? parseFloat(m[6]) : 0 }); }
               });
-              months.push({ trading: row[1] !== undefined && row[1] !== "" && tradingDetail.length === 0 ? parseFloat(row[1]) : "", capital: row[2] !== undefined && row[2] !== "" && tradingDetail.length === 0 ? parseFloat(row[2]) : "", tradingDetail, accionesDetail });
+              months.push({ trading: row[1] !== undefined && row[1] !== "" && tradingDetail.length === 0 ? parseFloat(row[1]) : "", capital: row[2] !== undefined && row[2] !== "" && tradingDetail.length === 0 ? parseFloat(row[2]) : "", margin, tradingDetail, accionesDetail });
             }
             newAllData[yr] = months;
           }
@@ -1216,6 +1231,25 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   )}
                 </div>
 
+                {/* ── IMPUESTOS MARGIN section ── */}
+                <div style={{ background: "#150c0c", borderRadius: "10px", padding: "12px", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                    <div>
+                      <div style={{ fontSize: isMobile ? "7px" : "11px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>IMPUESTOS MARGIN</div>
+                      <div style={{ fontSize: "16px", fontWeight: "700", color: row.margin > 0 ? "#ff4455" : "#9e968f" }}>
+                        {row.margin > 0 ? `-$${parseFloat(row.margin).toFixed(2)}` : "—"}
+                      </div>
+                    </div>
+                  </div>
+                  <div onClick={() => setModal({ i, field: "margin", label: "IMPUESTOS MARGIN ($)" })} style={{ background: "#080505", border: "1px solid #2a1a1a", borderRadius: "10px", padding: "10px", cursor: "pointer", textAlign: "center" }}>
+                    <div style={{ fontSize: "7px", letterSpacing: "1px", color: "#c9c0b4", marginBottom: "6px" }}>IMPUESTOS DEL MES ($)</div>
+                    <div style={{ fontSize: "13px", color: row.margin === "" || row.margin === 0 ? "#9e968f" : "#ff4455", fontWeight: "700" }}>
+                      {row.margin === "" || row.margin === 0 ? "—" : `-$${parseFloat(row.margin).toFixed(2)}`}
+                    </div>
+                    <div style={{ fontSize: "7px", color: "#ff445566", marginTop: "4px" }}>✎ editar</div>
+                  </div>
+                </div>
+
                 {/* ── G/L ACCIONES detail section ── */}
                 <div style={{ background: "#0a1010", borderRadius: "10px", padding: "12px", marginBottom: "10px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
@@ -1440,9 +1474,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? null : +row.trading);
         const c = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (row.capital === "" ? null : +row.capital);
         const a = (row.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
-        
+        const margin = row.margin === "" || row.margin === undefined ? 0 : parseFloat(row.margin);
         totalTradingGain += (t || 0);
-        totalRealizedGain += ((t || 0) + a);
+        totalRealizedGain += ((t || 0) + a - margin);
         
         if (t !== null && c !== null && c > 0) {
           monthlyPcts.push((t / c) * 100);
@@ -1656,6 +1690,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       {d.glVentas !== 0 && (
                         <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "4px" }}>
                           📤 G/L Acciones: <span style={{ color: "#4aaeff", fontWeight: "600" }}>${d.glVentas.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {d.marginTax !== 0 && (
+                        <div style={{ fontSize: "10px", color: "#c9c0b4", marginBottom: "4px" }}>
+                          💸 Impuestos Margin: <span style={{ color: "#ff4455", fontWeight: "600" }}>-${d.marginTax.toFixed(2)}</span>
                         </div>
                       )}
                       <div style={{ borderTop: "1px solid #1a2a2a", margin: "6px 0" }} />
@@ -1963,7 +2002,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   // ── Modals (shared between layouts) ──────────────────────────────
   const Modals = () => (
     <>
-      {modal && <InputModal label={`${MONTHS[modal.i]} · ${modal.label}`} value={data[modal.i][modal.field]} onSave={val => update(modal.i, modal.field, val)} onClose={() => setModal(null)} />}
+      {modal && <InputModal label={`${MONTHS[modal.i]} · ${modal.label}`} value={data[modal.i][modal.field] ?? ""} onSave={val => update(modal.i, modal.field, val)} onClose={() => setModal(null)} />}
       {editGoal && <InputModal label="META ANUAL ($)" value={goal} onSave={val => { if (parseFloat(val) > 0) setGoal(parseFloat(val)); }} onClose={() => setEditGoal(false)} />}
       {editCash && <InputModal label="CASH ($)" value={cash} onSave={val => setCash(parseFloat(val) || 0)} onClose={() => setEditCash(false)} />}
       {addStock && <AddStockModal onSave={handleAddStock} onClose={() => setAddStock(false)} />}
