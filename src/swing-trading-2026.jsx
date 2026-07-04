@@ -1094,15 +1094,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   const HomeScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
       <div style={{ background: "linear-gradient(135deg,#0a1f12,#071a1a)", border: "1px solid #00ff8820", borderRadius: "18px", padding: "20px", marginBottom: "12px" }}>
-        <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff8877", marginBottom: "4px" }}>RENDIMIENTO YTD {activeYear}</div>
-        <div style={{ fontSize: "40px", fontWeight: "700", color: "#00ff88", lineHeight: 1, letterSpacing: "-1px" }}>${ytd.toFixed(2)}</div>
-        <div style={{ fontSize: "10px", color: "#d4ccbf", marginTop: "4px" }}>
-          de{" "}<span onClick={() => setEditGoal(true)} style={{ color: "#ffd700", borderBottom: "1px dashed #ffd70066", cursor: "pointer" }}>${goal}</span>{" "}meta anual <span style={{ color: "#ffd70055", fontSize: "8px" }}>✎</span>
+        <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#00ff8877", marginBottom: "4px" }}>RENDIMIENTO YTD {activeYear}</div>
+        <div style={{ fontSize: isMobile ? "40px" : "52px", fontWeight: "700", color: "#00ff88", lineHeight: 1, letterSpacing: "-1px" }}>${ytd.toFixed(2)}</div>
+        <div style={{ fontSize: isMobile ? "10px" : "13px", color: "#d4ccbf", marginTop: "4px" }}>
+          de{" "}<span onClick={() => setEditGoal(true)} style={{ color: "#ffd700", borderBottom: "1px dashed #ffd70066", cursor: "pointer" }}>${goal}</span>{" "}meta anual <span style={{ color: "#ffd70055", fontSize: isMobile ? "8px" : "10px" }}>✎</span>
         </div>
         <div style={{ marginTop: "18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-            <span style={{ fontSize: "8px", letterSpacing: "1px", color: "#c9c0b4" }}>PROGRESO META</span>
-            <span style={{ fontSize: "9px", color: "#00ff88" }}>{progress.toFixed(1)}%</span>
+            <span style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "1px", color: "#c9c0b4" }}>PROGRESO META</span>
+            <span style={{ fontSize: isMobile ? "9px" : "11px", color: "#00ff88" }}>{progress.toFixed(1)}%</span>
           </div>
           <div style={{ background: "#0a1a0a", borderRadius: "6px", height: "8px", overflow: "hidden" }}>
             <div style={{ width: `${progress}%`, height: "100%", background: "linear-gradient(90deg,#003d22,#00ff88)", borderRadius: "6px", boxShadow: "0 0 10px #00ff8866" }} />
@@ -1117,24 +1117,24 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           { label: "MESES ACTIVOS", value: `${mesesAct}/12`, color: "#aa88ff", sub: "registrados" },
         ].map(({ label, value, color, sub }) => (
           <div key={label} style={{ background: "#0c1318", borderRadius: "14px", padding: "14px", borderLeft: `3px solid ${color}` }}>
-            <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "6px" }}>{label}</div>
-            <div style={{ fontSize: "18px", fontWeight: "700", color, lineHeight: 1 }}>{value}</div>
-            <div style={{ fontSize: "9px", color: "#c9c0b4", marginTop: "4px" }}>{sub}</div>
+            <div style={{ fontSize: isMobile ? "7px" : "9px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "6px" }}>{label}</div>
+            <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color, lineHeight: 1 }}>{value}</div>
+            <div style={{ fontSize: isMobile ? "9px" : "11px", color: "#c9c0b4", marginTop: "4px" }}>{sub}</div>
           </div>
         ))}
       </div>
       <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-        <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>ACUMULADO {activeYear} vs META</div>
-        <ResponsiveContainer width="100%" height={110}>
-          <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+        <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>ACUMULADO {activeYear} vs META</div>
+        <ResponsiveContainer width="100%" height={isMobile ? 110 : 150}>
+          <AreaChart data={chartData} margin={{ top: 4, right: 4, left: isMobile ? -28 : -10, bottom: 0 }}>
             <defs>
               <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#00ff88" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="m" tick={{ fontSize: 7, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 7, fill: "#9e968f" }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="m" tick={{ fontSize: isMobile ? 7 : 10, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: isMobile ? 7 : 10, fill: "#9e968f" }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #00ff8833", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`, "Acum."]} />
             <ReferenceLine y={goal} stroke="#ffd70055" strokeDasharray="3 3" />
             <Area type="monotone" dataKey="acum" stroke="#00ff88" strokeWidth={2} fill="url(#g1)" dot={false} />
@@ -1142,15 +1142,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         </ResponsiveContainer>
       </div>
       <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
-        <div style={{ fontSize: "8px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>REND. % POR MES</div>
-        <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: "55px" }}>
+        <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>REND. % POR MES</div>
+        <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: isMobile ? "55px" : "70px" }}>
           {computed.map((r, i) => {
-            const h = r.rendPct !== null ? Math.min(45, Math.max(4, (Math.abs(r.rendPct) / 12) * 45)) : 3;
+            const h = r.rendPct !== null ? Math.min(isMobile ? 45 : 58, Math.max(4, (Math.abs(r.rendPct) / 12) * (isMobile ? 45 : 58))) : 3;
             const col = pctColor(r.rendPct);
             return (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
                 <div style={{ width: "100%", height: `${h}px`, background: col, borderRadius: "3px 3px 0 0", opacity: r.rendPct !== null ? 0.85 : 0.15 }} />
-                <div style={{ fontSize: "6px", color: "#c9c0b4" }}>{MONTHS_SHORT[i]}</div>
+                <div style={{ fontSize: isMobile ? "6px" : "8px", color: "#c9c0b4" }}>{MONTHS_SHORT[i]}</div>
               </div>
             );
           })}
@@ -1492,6 +1492,17 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       const avgCapitalUSD = monthlyCapitals.length > 0
         ? monthlyCapitals.reduce((s, c) => s + c, 0) / monthlyCapitals.length
         : 0;
+
+      // Average monthly trading gain
+      const monthlyGains = [];
+      months.forEach(row => {
+        const td = row.tradingDetail || [];
+        const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? null : +row.trading);
+        if (t !== null) monthlyGains.push(t);
+      });
+      const avgGainUSD = monthlyGains.length > 0
+        ? monthlyGains.reduce((s, g) => s + g, 0) / monthlyGains.length
+        : 0;
       
       // Unrealized values
       const unrealizedUSD = unrealized[yr]?.usd || 0;
@@ -1505,6 +1516,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         tradingUSD: parseFloat(totalTradingGain.toFixed(2)),
         tradingPct: parseFloat(tradingPct.toFixed(2)),
         avgCapitalUSD: parseFloat(avgCapitalUSD.toFixed(2)),
+        avgGainUSD: parseFloat(avgGainUSD.toFixed(2)),
         unrealizedUSD: parseFloat(unrealizedUSD.toFixed(2)),
         unrealizedPct: parseFloat(unrealizedPct.toFixed(2)),
         realizedUSD: parseFloat(totalRealizedGain.toFixed(2)),
@@ -1517,6 +1529,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       tradingUSD: 0, 
       tradingPct: 0, 
       avgCapitalUSD: 0,
+      avgGainUSD: 0,
       unrealizedUSD: 0, 
       unrealizedPct: 0, 
       realizedUSD: 0, 
@@ -1554,14 +1567,22 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
                 ${activeData.tradingUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
               </div>
-              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
                 <span>{activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>prom.</span></span>
                 {activeData.avgCapitalUSD > 0 && (
-                  <span style={{ fontSize: "11px", color: "#aa88ff88" }}>·</span>
+                  <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
                 )}
                 {activeData.avgCapitalUSD > 0 && (
                   <span style={{ fontSize: "11px", color: "#aa88ffaa" }}>
                     ${activeData.avgCapitalUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>cap prom.</span>
+                  </span>
+                )}
+                {activeData.avgGainUSD !== 0 && (
+                  <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
+                )}
+                {activeData.avgGainUSD !== 0 && (
+                  <span style={{ fontSize: "11px", color: activeData.avgGainUSD >= 0 ? "#00ff88aa" : "#ff4455aa" }}>
+                    ${activeData.avgGainUSD.toLocaleString("es-ES", { minimumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>gan. prom.</span>
                   </span>
                 )}
               </div>
