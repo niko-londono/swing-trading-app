@@ -202,6 +202,54 @@ function InputModal({ label, value, onSave, onClose }) {
   );
 }
 
+// ── Edit Plazo Modal ──────────────────────────────────────────────────
+function EditPlazoModal({ plazoConfig, onSave, onClose }) {
+  const [config, setConfig] = useState({ ...plazoConfig });
+  const isMobile = window.innerWidth < 768;
+  const cats = ["ACCIONES", "ETF", "CRYPTO", "TRADING", "CASH"];
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #4aaeff44", border: !isMobile ? "1px solid #4aaeff44" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box" }}>
+        <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#4aaeff", marginBottom: "18px" }}>EDITAR DISTRIBUCIÓN POR PLAZO</div>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
+          {cats.map(cat => (
+            <div key={cat} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#0a1818", padding: "10px 14px", borderRadius: "10px", border: "1px solid #1a2a2a" }}>
+              <span style={{ fontSize: "12px", color: "#fff", fontWeight: "bold", fontFamily: "'Courier New',monospace" }}>{cat}</span>
+              <select
+                value={config[cat] || "CORTO PLAZO"}
+                onChange={e => setConfig(prev => ({ ...prev, [cat]: e.target.value }))}
+                style={{
+                  background: "#080d0f",
+                  border: "1px solid #1a2a2a",
+                  borderRadius: "6px",
+                  color: config[cat] === "LARGO PLAZO" ? "#4aaeff" : "#00ff88",
+                  fontSize: "11px",
+                  padding: "4px 8px",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  outline: "none"
+                }}
+              >
+                <option value="CORTO PLAZO" style={{ color: "#00ff88" }}>CORTO PLAZO</option>
+                <option value="LARGO PLAZO" style={{ color: "#4aaeff" }}>LARGO PLAZO</option>
+              </select>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "15px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>Cancelar</button>
+          <button onClick={() => { onSave(config); onClose(); }} style={{ flex: 2, padding: "15px", background: "linear-gradient(135deg,#003a5a,#006699)", border: "none", borderRadius: "12px", color: "#4aaeff", fontSize: "13px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>
+            GUARDAR
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Add Stock Modal (with month selector + purchase record) ───────────
 function AddStockModal({ onSave, onClose }) {
   const [ticker, setTicker] = useState("");
@@ -503,10 +551,36 @@ export default function App() {
   });
   const [editUnrealized, setEditUnrealized] = useState(null); // { year, field, label, value }
   const [annualChartMode, setAnnualChartMode] = useState("usd"); // 'usd' | 'pct'
+  const [plazoConfig, setPlazoConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem("swingPlazoConfig");
+      return saved ? JSON.parse(saved) : {
+        "ETF": "LARGO PLAZO",
+        "CRYPTO": "LARGO PLAZO",
+        "ACCIONES": "CORTO PLAZO",
+        "TRADING": "CORTO PLAZO",
+        "CASH": "CORTO PLAZO"
+      };
+    } catch {
+      return {
+        "ETF": "LARGO PLAZO",
+        "CRYPTO": "LARGO PLAZO",
+        "ACCIONES": "CORTO PLAZO",
+        "TRADING": "CORTO PLAZO",
+        "CASH": "CORTO PLAZO"
+      };
+    }
+  });
+  const [editPlazo, setEditPlazo] = useState(false);
+  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("TODOS");
 
   useEffect(() => {
     localStorage.setItem("swingUnrealized", JSON.stringify(unrealized));
   }, [unrealized]);
+
+  useEffect(() => {
+    localStorage.setItem("swingPlazoConfig", JSON.stringify(plazoConfig));
+  }, [plazoConfig]);
 
   const fileRef = useRef();
 
@@ -908,7 +982,7 @@ export default function App() {
     e.target.value = "";
   };
 
-  const getAppSnapshot = () => ({ allData, portfolio, cash, goal, unrealized });
+  const getAppSnapshot = () => ({ allData, portfolio, cash, goal, unrealized, plazoConfig });
 
   const loadSnapshot = (snap) => {
     if (snap.allData && Object.keys(snap.allData).length) {
@@ -919,6 +993,7 @@ export default function App() {
     if (typeof snap.cash === "number") setCash(snap.cash);
     if (typeof snap.goal === "number") setGoal(snap.goal);
     if (snap.unrealized) setUnrealized(snap.unrealized);
+    if (snap.plazoConfig) setPlazoConfig(snap.plazoConfig);
   };
 
   const pullFromSheet = async () => {
@@ -1817,23 +1892,65 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
       {/* ── VALOR POR ACTIVO ── */}
       {barData.length > 0 && (() => {
-        const sortedBar = [...barData].sort((a, b) => b.valor - a.valor);
+        const filteredBar = barData.filter(item => {
+          if (selectedCategoryFilter === "TODOS") return true;
+          if (item.ticker === "CASH") return selectedCategoryFilter === "CASH";
+          const stock = portfolio.find(s => s.ticker === item.ticker);
+          const cat = stock ? (stock.categoria || "ACCIONES") : "ACCIONES";
+          return cat === selectedCategoryFilter;
+        });
+        const sortedBar = [...filteredBar].sort((a, b) => b.valor - a.valor);
         const barHeight = Math.max(isMobile ? 120 : 250, sortedBar.length * 38);
         return (
           <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
-            <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>VALOR POR ACTIVO ($)</div>
-            <ResponsiveContainer width="100%" height={barHeight}>
-              <BarChart layout="vertical" data={sortedBar} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
-                <XAxis type="number" hide />
-                <YAxis dataKey="ticker" type="category" tick={{ fontSize: 9, fill: "#c9c0b4", fontWeight: "bold" }} axisLine={false} tickLine={false} width={60} />
-                <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#00ff88", fontWeight: "bold" }} labelStyle={{ color: "#ffffff", fontWeight: "bold", marginBottom: "4px" }} formatter={v => [`$${v.toFixed(2)}`]} />
-                <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20}>
-                  {sortedBar.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
+              <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4" }}>VALOR POR ACTIVO ($)</div>
+              {/* Category Filter Buttons */}
+              <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                {["TODOS", ...CATEGORIAS, "CASH"].map(cat => {
+                  const isSelected = selectedCategoryFilter === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategoryFilter(cat)}
+                      style={{
+                        background: isSelected ? "#00ff8818" : "none",
+                        border: isSelected ? "1px solid #00ff8888" : "1px solid #1a2a2a",
+                        borderRadius: "6px",
+                        color: isSelected ? "#00ff88" : "#9e968f",
+                        fontSize: isMobile ? "7px" : "8px",
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        fontWeight: isSelected ? "bold" : "normal",
+                        fontFamily: "inherit",
+                        letterSpacing: "1px",
+                        transition: "all 0.15s"
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {sortedBar.length === 0 ? (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "180px", color: "#9e968f", fontSize: "11px" }}>
+                No hay activos registrados en esta categoría
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={barHeight}>
+                <BarChart layout="vertical" data={sortedBar} margin={{ top: 0, right: 30, left: -20, bottom: 0 }}>
+                  <XAxis type="number" hide />
+                  <YAxis dataKey="ticker" type="category" tick={{ fontSize: 9, fill: "#c9c0b4", fontWeight: "bold" }} axisLine={false} tickLine={false} width={60} />
+                  <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#00ff88", fontWeight: "bold" }} labelStyle={{ color: "#ffffff", fontWeight: "bold", marginBottom: "4px" }} formatter={v => [`$${v.toFixed(2)}`]} />
+                  <Bar dataKey="valor" radius={[0, 4, 4, 0]} barSize={20}>
+                    {sortedBar.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         );
       })()}
@@ -1887,14 +2004,12 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         };
         portfolio.filter(s => s.shares > 0).forEach(s => {
           const cat = s.categoria || "ACCIONES";
-          if (cat === "ETF" || cat === "CRYPTO") {
-            plazoGroups["LARGO PLAZO"] += s.shares * s.price;
-          } else {
-            plazoGroups["CORTO PLAZO"] += s.shares * s.price;
-          }
+          const targetPlazo = plazoConfig[cat] || "CORTO PLAZO";
+          plazoGroups[targetPlazo] += s.shares * s.price;
         });
         if (cash > 0) {
-          plazoGroups["CORTO PLAZO"] += cash;
+          const cashPlazo = plazoConfig["CASH"] || "CORTO PLAZO";
+          plazoGroups[cashPlazo] += cash;
         }
         const total = plazoGroups["LARGO PLAZO"] + plazoGroups["CORTO PLAZO"];
         if (total === 0) return null;
@@ -1914,7 +2029,16 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         ].filter(p => p.valor > 0).sort((a, b) => b.valor - a.valor);
         return (
           <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px" }}>
-            <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "20px" }}>DISTRIBUCIÓN POR PLAZO</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#c9c0b4" }}>DISTRIBUCIÓN POR PLAZO</div>
+              <button 
+                onClick={() => setEditPlazo(true)} 
+                style={{ background: "none", border: "none", color: "#4aaeff", fontSize: isMobile ? "9px" : "11px", cursor: "pointer", fontWeight: "bold", fontFamily: "inherit", display: "flex", alignItems: "center", gap: "4px" }}
+              >
+                <span>Editar Plazos</span>
+                <span>✎</span>
+              </button>
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "16px" }}>
               {plazoData.map((plazo, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", background: "#080d0f", borderRadius: "12px", borderLeft: `4px solid ${plazo.color}`, boxShadow: "0 2px 8px rgba(0,0,0,0.2)" }}>
@@ -2091,6 +2215,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             setEditTx(null);
           }} 
           onClose={() => setEditTx(null)} 
+        />
+      )}
+      {editPlazo && (
+        <EditPlazoModal
+          plazoConfig={plazoConfig}
+          onSave={setPlazoConfig}
+          onClose={() => setEditPlazo(false)}
         />
       )}
       {confirmPush && (
