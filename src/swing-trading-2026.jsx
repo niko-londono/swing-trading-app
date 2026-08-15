@@ -2360,66 +2360,93 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     const safeValorInicial = (typeof valorInicial === "number" && !isNaN(valorInicial)) ? valorInicial : 0;
 
     // 3. Build monthly data points with cumulative stacking
-    let runningDeposito = 0;
+    // NEW DEPOSIT LOGIC: Deposits = Portfolio Growth - Total G/L
+    // We compute total G/L per month from trading + ventas + dividendos,
+    // then derive deposits as the residual needed to explain portfolio growth.
+
     let runningTrading = 0;
     let runningVentas = 0;
     let runningDividendos = 0;
 
     const totalPoints = filteredTimeline.length;
 
-    const chartPoints = filteredTimeline.map((tItem, idx) => {
+    // First pass: compute cumulative G/L for each month
+    const monthlyGL = filteredTimeline.map(tItem => {
       const row = tItem.row || {};
       const accDet = row.accionesDetail || [];
       const trDet = row.tradingDetail || [];
 
-      const deposito = tItem.year > startYear
-        ? accDet.filter(d => d && d.tipo === "compra").reduce((s, d) => s + (((d.shares || 0) * (d.precioCompra || 0)) || (d.monto || 0)), 0)
-        : 0;
-
       const glTrading = trDet.reduce((s, d) => s + (d ? (d.ganancia || 0) : 0), 0);
       const glVentas = accDet.filter(d => d && d.tipo === "venta").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
       const glDividendos = accDet.filter(d => d && d.tipo === "dividendo").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
+
+      return { glTrading, glVentas, glDividendos };
+    });
+
+    // Total cumulative G/L across the entire filtered period
+    const totalGLAllPeriod = monthlyGL.reduce((s, m) => s + m.glTrading + m.glVentas + m.glDividendos, 0);
+
+    // Total deposits for the entire period: portfolio growth minus G/L
+    const valorActual = typeof totalPortfolioValue === "number" && !isNaN(totalPortfolioValue) ? totalPortfolioValue : 0;
+    const totalDepositsPeriod = Math.max(0, (valorActual - safeValorInicial) - totalGLAllPeriod);
+
+    // Distribute deposits proportionally per year (based on purchase records as weight)
+    // For chart rendering, compute cumulative values
+    let acumTrading = 0;
+    let acumVentas = 0;
+    let acumDividendos = 0;
+
+    const chartPoints = filteredTimeline.map((tItem, idx) => {
+      const { glTrading, glVentas, glDividendos } = monthlyGL[idx];
       const glTotal = glTrading + glVentas + glDividendos;
 
-      runningDeposito += deposito;
-      runningTrading += glTrading;
-      runningVentas += glVentas;
-      runningDividendos += glDividendos;
+      acumTrading += glTrading;
+      acumVentas += glVentas;
+      acumDividendos += glDividendos;
 
-      let valorPortafolio = safeValorInicial + runningDeposito + runningTrading + runningVentas + runningDividendos;
+      // Cumulative G/L up to this month
+      const acumGLToHere = acumTrading + acumVentas + acumDividendos;
 
+      // For the last point, portfolio value is live; for others, estimate linearly
+      let valorPortafolio;
       if (idx === totalPoints - 1) {
-        valorPortafolio = (typeof totalPortfolioValue === "number" && !isNaN(totalPortfolioValue)) ? totalPortfolioValue : valorPortafolio;
+        valorPortafolio = valorActual;
+      } else {
+        // Interpolate: base + proportional deposits + cumulative G/L
+        const progress = totalPoints > 1 ? (idx + 1) / totalPoints : 1;
+        valorPortafolio = safeValorInicial + (totalDepositsPeriod * progress) + acumGLToHere;
       }
+
+      // Cumulative deposits up to this point = portfolio value - base - cumulative G/L
+      const acumDeposito = Math.max(0, valorPortafolio - safeValorInicial - acumGLToHere);
 
       return {
         label: tItem.label || "",
         year: tItem.year,
         monthIdx: tItem.monthIdx,
-        deposito,
+        deposito: 0,
         glTrading,
         glVentas,
         glDividendos,
         glTotal,
         base: safeValorInicial,
-        acumDeposito: runningDeposito,
-        acumTrading: runningTrading,
-        acumVentas: runningVentas,
-        acumDividendos: runningDividendos,
+        acumDeposito,
+        acumTrading,
+        acumVentas,
+        acumDividendos,
         valorPortafolio: parseFloat((valorPortafolio || 0).toFixed(2))
       };
     });
 
     // 4. Calculate Top KPIs
-    const valorActual = typeof totalPortfolioValue === "number" && !isNaN(totalPortfolioValue) ? totalPortfolioValue : 0;
     const crecimientoTotal = valorActual - safeValorInicial;
     const roiPeriodo = safeValorInicial > 0 ? (crecimientoTotal / safeValorInicial) * 100 : 0;
 
     // 5. Build Annual Breakdown Table data
+    // Deposits per year = (valorFinal - valorInicio) - totalGL
     const uniqueYears = Array.from(new Set(filteredTimeline.map(t => t.year)));
-    const annualTableData = uniqueYears.map(yr => {
+    const annualTableData = uniqueYears.map((yr, yrIdx) => {
       const yrMonths = (allData && allData[yr]) || [];
-      let totalDep = 0;
       let totalTr = 0;
       let totalVe = 0;
       let totalDiv = 0;
@@ -2428,20 +2455,32 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         if (!row) return;
         const accDet = row.accionesDetail || [];
         const trDet = row.tradingDetail || [];
-        totalDep += accDet.filter(d => d && d.tipo === "compra").reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
         totalTr += trDet.reduce((s, d) => s + (d ? (d.ganancia || 0) : 0), 0);
         totalVe += accDet.filter(d => d && d.tipo === "venta").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
         totalDiv += accDet.filter(d => d && d.tipo === "dividendo").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
       });
 
       const totalGLYear = totalTr + totalVe + totalDiv;
+
+      // valorFinal for this year
       const valorFinal = (yr === activeYear)
         ? valorActual
         : ((yearSnapshots && yearSnapshots[yr]?.portfolioValue) ? yearSnapshots[yr].portfolioValue : valorActual);
 
+      // valorInicio for this year
+      const valorInicio = (yr === allYears[0])
+        ? safeValorInicial
+        : ((yearSnapshots && yearSnapshots[yr - 1]?.portfolioValue && yearSnapshots[yr - 1]?.portfolioValue > 0)
+            ? yearSnapshots[yr - 1].portfolioValue
+            : safeValorInicial);
+
+      // Deposits = portfolio growth for this year minus the G/L earned this year
+      const portfolioGrowthYear = valorFinal - valorInicio;
+      const depositsYear = Math.max(0, portfolioGrowthYear - totalGLYear);
+
       return {
         year: yr,
-        depositos: totalDep || 0,
+        depositos: parseFloat(depositsYear.toFixed(2)) || 0,
         glTrading: totalTr || 0,
         glVentas: totalVe || 0,
         glDividendos: totalDiv || 0,
