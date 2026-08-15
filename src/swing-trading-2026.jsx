@@ -2647,7 +2647,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 value: d.glTrading || 0,
                 color: glTradingColor,
                 icon: (
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={glTradingColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={glTradingColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
                     <polyline points="17 6 23 6 23 12"/>
                   </svg>
@@ -2658,7 +2658,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 value: d.glVentas || 0,
                 color: glVentasColor,
                 icon: (
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={glVentasColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={glVentasColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
                   </svg>
@@ -2669,7 +2669,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 value: d.glDividendos || 0,
                 color: "#ffd700",
                 icon: (
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/>
                     <line x1="12" y1="8" x2="12" y2="12"/>
                     <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -2681,7 +2681,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 value: unrealizedVal,
                 color: "#00e5ff",
                 icon: (
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="20" x2="18" y2="10"/>
                     <line x1="12" y1="20" x2="12" y2="4"/>
                     <line x1="6" y1="20" x2="6" y2="14"/>
@@ -2721,25 +2721,28 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <div key={label} style={{
                       background: "#080d0f",
                       borderRadius: "12px",
-                      padding: "14px",
+                      padding: "18px 12px",
                       border: "1px solid #1a2a2a",
                       display: "flex",
                       flexDirection: "column",
-                      justifyContent: "space-between",
-                      minHeight: "110px",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      minHeight: "130px",
+                      gap: "10px",
                     }}>
-                      <div style={{ fontSize: "7px", letterSpacing: "1.5px", color: "#9e968f", marginBottom: "10px" }}>{label}</div>
+                      <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "1.5px", color, fontWeight: "600" }}>{label}</div>
                       <div style={{
-                        width: "44px", height: "44px",
-                        background: `${color}15`,
+                        width: "36px", height: "36px",
+                        background: `${color}18`,
                         borderRadius: "10px",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        marginBottom: "10px",
+                        flexShrink: 0,
                       }}>
                         {icon}
                       </div>
-                      <div style={{ borderTop: "1px solid #1a2a2a", paddingTop: "8px" }}>
-                        <div style={{ fontSize: isMobile ? "13px" : "15px", fontWeight: "700", color }}>
+                      <div style={{ borderTop: `1px solid ${color}22`, paddingTop: "8px", width: "100%" }}>
+                        <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color }}>
                           {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                         </div>
                       </div>
@@ -2750,52 +2753,53 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   <div style={{
                     background: "#080d0f",
                     borderRadius: "12px",
-                    padding: "14px",
+                    padding: "18px 12px",
                     border: "1px solid #1a2a2a",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     justifyContent: "center",
                     textAlign: "center",
-                    minHeight: "110px",
+                    minHeight: "130px",
+                    gap: "10px",
                   }}>
-                    <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#9e968f", marginBottom: "8px" }}>TOTAL G/L</div>
-                    <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
+                    <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "2px", color: glTotalColor, fontWeight: "600" }}>TOTAL G/L</div>
+                    <div style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
                       {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </div>
-                    <div style={{ marginTop: "10px" }}>
-                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
-                        <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
-                        <path d="M22 12A10 10 0 0 0 12 2v10z" stroke={glTotalColor} strokeWidth="2"/>
-                      </svg>
-                    </div>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
+                      <path d="M22 12A10 10 0 0 0 12 2v10z" stroke={glTotalColor} strokeWidth="2"/>
+                    </svg>
                   </div>
 
                   {/* DEPÓSITOS */}
                   <div style={{
                     background: "#080d0f",
                     borderRadius: "12px",
-                    padding: "14px",
+                    padding: "18px 12px",
                     border: "1px solid #1a2a2a",
                     display: "flex",
                     flexDirection: "column",
-                    justifyContent: "space-between",
-                    minHeight: "110px",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    minHeight: "130px",
+                    gap: "10px",
                   }}>
-                    <div style={{ fontSize: "7px", letterSpacing: "1.5px", color: "#4aaeff", marginBottom: "10px" }}>DEPÓSITOS</div>
+                    <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "1.5px", color: "#4aaeff", fontWeight: "600" }}>DEPÓSITOS</div>
                     <div style={{
-                      width: "44px", height: "44px",
-                      background: "#4aaeff15",
+                      width: "36px", height: "36px",
+                      background: "#4aaeff18",
                       borderRadius: "10px",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      marginBottom: "10px",
                     }}>
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4aaeff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4aaeff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                       </svg>
                     </div>
-                    <div style={{ borderTop: "1px solid #1a2a2a", paddingTop: "8px" }}>
-                      <div style={{ fontSize: isMobile ? "13px" : "15px", fontWeight: "700", color: "#4aaeff" }}>
+                    <div style={{ borderTop: "1px solid #4aaeff22", paddingTop: "8px", width: "100%" }}>
+                      <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color: "#4aaeff" }}>
                         ${(d.depositos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                       </div>
                     </div>
@@ -2805,30 +2809,32 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   <div style={{
                     background: "linear-gradient(135deg, #071a1a, #0a1a2a)",
                     borderRadius: "12px",
-                    padding: "14px",
+                    padding: "18px 12px",
                     border: "1px solid #00e5ff33",
                     display: "flex",
                     flexDirection: "column",
-                    justifyContent: "space-between",
-                    minHeight: "110px",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    minHeight: "130px",
+                    gap: "10px",
                   }}>
-                    <div style={{ fontSize: "7px", letterSpacing: "1.5px", color: "#00e5ff", marginBottom: "10px" }}>VALOR FINAL</div>
+                    <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "1.5px", color: "#00e5ff", fontWeight: "600" }}>VALOR FINAL</div>
                     <div style={{
-                      width: "44px", height: "44px",
-                      background: "#00e5ff15",
+                      width: "36px", height: "36px",
+                      background: "#00e5ff18",
                       borderRadius: "10px",
                       display: "flex", alignItems: "center", justifyContent: "center",
-                      marginBottom: "10px",
                     }}>
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                       </svg>
                     </div>
-                    <div style={{ borderTop: "1px solid #00e5ff22", paddingTop: "8px" }}>
-                      <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: "700", color: "#00e5ff" }}>
+                    <div style={{ borderTop: "1px solid #00e5ff22", paddingTop: "8px", width: "100%" }}>
+                      <div style={{ fontSize: isMobile ? "17px" : "22px", fontWeight: "700", color: "#00e5ff" }}>
                         ${(d.valorFinal || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                       </div>
-                      <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "3px" }}>(TOTAL G/L + DEPÓSITOS)</div>
+                      <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "4px" }}>(TOTAL G/L + DEPÓSITOS)</div>
                     </div>
                   </div>
                 </div>
