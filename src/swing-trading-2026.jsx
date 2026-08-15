@@ -2187,21 +2187,27 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       filteredTimeline = fullTimeline.slice(-12);
     }
 
-    // 2. Calculate Initial Value for the selected range
-    const startYear = filteredTimeline[0]?.year || START_YEAR;
-
+    // 2. Calculate Initial Value dynamically from stock purchases (tipo === "compra") in January 2026
     const get2026InitialValue = () => {
-      // 1. Check accionesDetail in 2026
-      const accDet2026 = Object.values(allData[2026] || {})
+      const yr2026Months = allData[2026] || [];
+      
+      // Sum purchases in January (month 0) of 2026
+      const janAcciones = yr2026Months[0]?.accionesDetail || [];
+      const janComprasSum = janAcciones
+        .filter(d => d.tipo === "compra")
+        .reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
+
+      if (janComprasSum > 0) return janComprasSum;
+
+      // Sum purchases across all months of 2026
+      const allAcciones2026 = Object.values(allData[2026] || {})
         .flatMap(m => m?.accionesDetail || [])
         .filter(d => d.tipo === "compra");
-      const sumAccDet = accDet2026.reduce((s, d) => {
-        const val = (d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0);
-        return s + val;
-      }, 0);
-      if (sumAccDet > 0) return sumAccDet;
+      const sum2026Acciones = allAcciones2026.reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
 
-      // 2. Check portfolio stock history for 2026
+      if (sum2026Acciones > 0) return sum2026Acciones;
+
+      // Sum from portfolio stock history for 2026
       let sumHistory = 0;
       portfolio.forEach(s => {
         (s.history || []).forEach(h => {
@@ -2212,12 +2218,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       });
       if (sumHistory > 0) return sumHistory;
 
-      // 3. Cost basis of portfolio
-      const sumCostBasis = portfolio.reduce((s, p) => s + ((p.shares || 0) * (p.price || 0)), 0);
-      if (sumCostBasis > 0) return sumCostBasis;
-
-      // 4. Default seed purchases sum
-      return 6282.06;
+      // Sum cost basis of portfolio stocks
+      return portfolio.reduce((s, p) => s + ((p.shares || 0) * (p.price || 0)), 0);
     };
 
     const valorInicial2026 = get2026InitialValue();
