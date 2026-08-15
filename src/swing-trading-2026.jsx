@@ -2150,17 +2150,17 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     const [timeFilter, setTimeFilter] = useState("ALL");
 
     // 1. Build full timeline array of all months across all registered years in allData
-    const allYears = Object.keys(allData).map(Number).sort((a, b) => a - b);
+    const allYears = Object.keys(allData || {}).map(Number).sort((a, b) => a - b);
     const fullTimeline = [];
     allYears.forEach(yr => {
-      const months = allData[yr] || [];
+      const months = (allData && allData[yr]) || [];
       months.forEach((mRow, mIdx) => {
         fullTimeline.push({
           year: yr,
           monthIdx: mIdx,
-          monthShort: MONTHS_SHORT[mIdx],
-          label: `${MONTHS_SHORT[mIdx]} ${yr}`,
-          row: mRow
+          monthShort: MONTHS_SHORT[mIdx] || `M${mIdx + 1}`,
+          label: `${MONTHS_SHORT[mIdx] || `M${mIdx + 1}`} ${yr}`,
+          row: mRow || {}
         });
       });
     });
@@ -2189,46 +2189,54 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
     // 2. Calculate Initial Value dynamically from stock purchases (tipo === "compra") in January 2026
     const get2026InitialValue = () => {
-      const yr2026Months = allData[2026] || [];
-      
-      // Sum purchases in January (month 0) of 2026
-      const janAcciones = yr2026Months[0]?.accionesDetail || [];
-      const janComprasSum = janAcciones
-        .filter(d => d.tipo === "compra")
-        .reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
+      try {
+        const yr2026Months = (allData && allData[2026]) || [];
+        
+        // Sum purchases in January (month 0) of 2026
+        const janAcciones = yr2026Months[0]?.accionesDetail || [];
+        const janComprasSum = janAcciones
+          .filter(d => d && d.tipo === "compra")
+          .reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
 
-      if (janComprasSum > 0) return janComprasSum;
+        if (janComprasSum > 0) return janComprasSum;
 
-      // Sum purchases across all months of 2026
-      const allAcciones2026 = Object.values(allData[2026] || {})
-        .flatMap(m => m?.accionesDetail || [])
-        .filter(d => d.tipo === "compra");
-      const sum2026Acciones = allAcciones2026.reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
+        // Sum purchases across all months of 2026
+        const allAcciones2026 = Object.values(allData[2026] || {})
+          .flatMap(m => (m && m.accionesDetail) || [])
+          .filter(d => d && d.tipo === "compra");
+        const sum2026Acciones = allAcciones2026.reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
 
-      if (sum2026Acciones > 0) return sum2026Acciones;
+        if (sum2026Acciones > 0) return sum2026Acciones;
 
-      // Sum from portfolio stock history for 2026
-      let sumHistory = 0;
-      portfolio.forEach(s => {
-        (s.history || []).forEach(h => {
-          if (h.tipo === "compra" && (h.year === 2026 || !h.year)) {
-            sumHistory += h.cashUsado || ((h.shares || 0) * (h.precioCompra || 0));
-          }
+        // Sum from portfolio stock history for 2026
+        let sumHistory = 0;
+        (portfolio || []).forEach(s => {
+          ((s && s.history) || []).forEach(h => {
+            if (h && h.tipo === "compra" && (h.year === 2026 || !h.year)) {
+              sumHistory += h.cashUsado || ((h.shares || 0) * (h.precioCompra || 0));
+            }
+          });
         });
-      });
-      if (sumHistory > 0) return sumHistory;
+        if (sumHistory > 0) return sumHistory;
 
-      // Sum cost basis of portfolio stocks
-      return portfolio.reduce((s, p) => s + ((p.shares || 0) * (p.price || 0)), 0);
+        // Sum cost basis of portfolio stocks
+        return (portfolio || []).reduce((s, p) => s + (((p && p.shares) || 0) * ((p && p.price) || 0)), 0);
+      } catch (err) {
+        console.error("Error computing initial value:", err);
+        return 0;
+      }
     };
 
+    const startYear = (filteredTimeline.length > 0 && filteredTimeline[0]?.year) ? filteredTimeline[0].year : START_YEAR;
     const valorInicial2026 = get2026InitialValue();
 
     const valorInicial = (startYear === START_YEAR)
       ? valorInicial2026
-      : ((yearSnapshots[startYear - 1]?.portfolioValue && yearSnapshots[startYear - 1]?.portfolioValue > 0)
+      : ((yearSnapshots && yearSnapshots[startYear - 1]?.portfolioValue && yearSnapshots[startYear - 1]?.portfolioValue > 0)
           ? yearSnapshots[startYear - 1].portfolioValue
           : valorInicial2026);
+
+    const safeValorInicial = (typeof valorInicial === "number" && !isNaN(valorInicial)) ? valorInicial : 0;
 
     // 3. Build monthly data points with cumulative stacking
     let runningDeposito = 0;
@@ -2243,15 +2251,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       const accDet = row.accionesDetail || [];
       const trDet = row.tradingDetail || [];
 
-      // For initial year (2026), purchases are already captured in valorInicial.
-      // For subsequent years, new purchases add to runningDeposito.
       const deposito = tItem.year > startYear
-        ? accDet.filter(d => d.tipo === "compra").reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0)
+        ? accDet.filter(d => d && d.tipo === "compra").reduce((s, d) => s + (((d.shares || 0) * (d.precioCompra || 0)) || (d.monto || 0)), 0)
         : 0;
 
-      const glTrading = trDet.reduce((s, d) => s + (d.ganancia || 0), 0);
-      const glVentas = accDet.filter(d => d.tipo === "venta").reduce((s, d) => s + (d.monto || 0), 0);
-      const glDividendos = accDet.filter(d => d.tipo === "dividendo").reduce((s, d) => s + (d.monto || 0), 0);
+      const glTrading = trDet.reduce((s, d) => s + (d ? (d.ganancia || 0) : 0), 0);
+      const glVentas = accDet.filter(d => d && d.tipo === "venta").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
+      const glDividendos = accDet.filter(d => d && d.tipo === "dividendo").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
       const glTotal = glTrading + glVentas + glDividendos;
 
       runningDeposito += deposito;
@@ -2259,15 +2265,14 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       runningVentas += glVentas;
       runningDividendos += glDividendos;
 
-      let valorPortafolio = valorInicial + runningDeposito + runningTrading + runningVentas + runningDividendos;
+      let valorPortafolio = safeValorInicial + runningDeposito + runningTrading + runningVentas + runningDividendos;
 
-      // The last point of the timeline connects directly to totalPortfolioValue (live market value)
       if (idx === totalPoints - 1) {
-        valorPortafolio = totalPortfolioValue;
+        valorPortafolio = (typeof totalPortfolioValue === "number" && !isNaN(totalPortfolioValue)) ? totalPortfolioValue : valorPortafolio;
       }
 
       return {
-        label: tItem.label,
+        label: tItem.label || "",
         year: tItem.year,
         monthIdx: tItem.monthIdx,
         deposito,
@@ -2275,51 +2280,52 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         glVentas,
         glDividendos,
         glTotal,
-        base: valorInicial,
+        base: safeValorInicial,
         acumDeposito: runningDeposito,
         acumTrading: runningTrading,
         acumVentas: runningVentas,
         acumDividendos: runningDividendos,
-        valorPortafolio: parseFloat(valorPortafolio.toFixed(2))
+        valorPortafolio: parseFloat((valorPortafolio || 0).toFixed(2))
       };
     });
 
     // 4. Calculate Top KPIs
-    const valorActual = totalPortfolioValue;
-    const crecimientoTotal = valorActual - valorInicial;
-    const roiPeriodo = valorInicial > 0 ? (crecimientoTotal / valorInicial) * 100 : 0;
+    const valorActual = typeof totalPortfolioValue === "number" && !isNaN(totalPortfolioValue) ? totalPortfolioValue : 0;
+    const crecimientoTotal = valorActual - safeValorInicial;
+    const roiPeriodo = safeValorInicial > 0 ? (crecimientoTotal / safeValorInicial) * 100 : 0;
 
-    // 5. Build Annual Breakdown Table data for years present in filteredTimeline
+    // 5. Build Annual Breakdown Table data
     const uniqueYears = Array.from(new Set(filteredTimeline.map(t => t.year)));
     const annualTableData = uniqueYears.map(yr => {
-      const yrMonths = allData[yr] || [];
+      const yrMonths = (allData && allData[yr]) || [];
       let totalDep = 0;
       let totalTr = 0;
       let totalVe = 0;
       let totalDiv = 0;
 
       yrMonths.forEach(row => {
+        if (!row) return;
         const accDet = row.accionesDetail || [];
         const trDet = row.tradingDetail || [];
-        totalDep += accDet.filter(d => d.tipo === "compra").reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
-        totalTr += trDet.reduce((s, d) => s + (d.ganancia || 0), 0);
-        totalVe += accDet.filter(d => d.tipo === "venta").reduce((s, d) => s + (d.monto || 0), 0);
-        totalDiv += accDet.filter(d => d.tipo === "dividendo").reduce((s, d) => s + (d.monto || 0), 0);
+        totalDep += accDet.filter(d => d && d.tipo === "compra").reduce((s, d) => s + ((d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0)), 0);
+        totalTr += trDet.reduce((s, d) => s + (d ? (d.ganancia || 0) : 0), 0);
+        totalVe += accDet.filter(d => d && d.tipo === "venta").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
+        totalDiv += accDet.filter(d => d && d.tipo === "dividendo").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
       });
 
       const totalGLYear = totalTr + totalVe + totalDiv;
       const valorFinal = (yr === activeYear)
-        ? totalPortfolioValue
-        : (yearSnapshots[yr]?.portfolioValue ?? totalPortfolioValue);
+        ? valorActual
+        : ((yearSnapshots && yearSnapshots[yr]?.portfolioValue) ? yearSnapshots[yr].portfolioValue : valorActual);
 
       return {
         year: yr,
-        depositos: totalDep,
-        glTrading: totalTr,
-        glVentas: totalVe,
-        glDividendos: totalDiv,
-        totalGL: totalGLYear,
-        valorFinal
+        depositos: totalDep || 0,
+        glTrading: totalTr || 0,
+        glVentas: totalVe || 0,
+        glDividendos: totalDiv || 0,
+        totalGL: totalGLYear || 0,
+        valorFinal: valorFinal || 0
       };
     });
 
@@ -2368,7 +2374,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "14px", padding: "16px 20px" }}>
             <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#9e968f", marginBottom: "8px", fontWeight: "600" }}>VALOR INICIAL</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff", lineHeight: 1 }}>
-              ${valorInicial.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+              ${safeValorInicial.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
             </div>
             <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Capital base del período</div>
           </div>
@@ -2395,7 +2401,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ background: "#0c1318", border: `1px solid ${roiPeriodo >= 0 ? "#ffd70033" : "#ff445533"}`, borderRadius: "14px", padding: "16px 20px", borderLeft: `3px solid ${roiPeriodo >= 0 ? "#ffd700" : "#ff4455"}` }}>
             <div style={{ fontSize: "10px", letterSpacing: "1px", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", marginBottom: "8px", fontWeight: "600" }}>ROI DEL PERÍODO</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", lineHeight: 1 }}>
-              {roiPeriodo >= 0 ? "+" : ""}{roiPeriodo.toFixed(2)}%
+              {roiPeriodo >= 0 ? "+" : ""}{(roiPeriodo || 0).toFixed(2)}%
             </div>
             <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Retorno sobre inversión</div>
           </div>
@@ -2413,33 +2419,39 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               <Tooltip 
                 cursor={{ stroke: "#00ff8855", strokeWidth: 1 }}
                 content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
+                  if (active && payload && payload.length && payload[0]?.payload) {
                     const dataPoint = payload[0].payload;
+                    const vp = dataPoint.valorPortafolio ?? 0;
+                    const base = dataPoint.base ?? 0;
+                    const dep = dataPoint.acumDeposito ?? 0;
+                    const tr = dataPoint.acumTrading ?? 0;
+                    const ve = dataPoint.acumVentas ?? 0;
+                    const div = dataPoint.acumDividendos ?? 0;
                     return (
                       <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "14px 16px", borderRadius: "10px", minWidth: "210px" }}>
                         <div style={{ fontSize: "12px", fontWeight: "bold", color: "#00ff88", marginBottom: "8px", letterSpacing: "1px" }}>{label}</div>
                         <div style={{ fontSize: "14px", fontWeight: "bold", color: "#fff", marginBottom: "10px", borderBottom: "1px solid #1a2a2a", paddingBottom: "6px" }}>
-                          Portafolio: ${dataPoint.valorPortafolio.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                          Portafolio: ${vp.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
                           <span style={{ color: "#9e968f" }}>Base:</span>
-                          <span style={{ color: "#c0c8cc", fontWeight: "bold" }}>${dataPoint.base.toFixed(2)}</span>
+                          <span style={{ color: "#c0c8cc", fontWeight: "bold" }}>${base.toFixed(2)}</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
                           <span style={{ color: "#4aaeff" }}>Depósitos Acum.:</span>
-                          <span style={{ color: "#4aaeff", fontWeight: "bold" }}>+${dataPoint.acumDeposito.toFixed(2)}</span>
+                          <span style={{ color: "#4aaeff", fontWeight: "bold" }}>+${dep.toFixed(2)}</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
                           <span style={{ color: "#aa88ff" }}>Trading Acum.:</span>
-                          <span style={{ color: "#aa88ff", fontWeight: "bold" }}>+${dataPoint.acumTrading.toFixed(2)}</span>
+                          <span style={{ color: "#aa88ff", fontWeight: "bold" }}>+${tr.toFixed(2)}</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
                           <span style={{ color: "#00ff88" }}>Ventas Acum.:</span>
-                          <span style={{ color: "#00ff88", fontWeight: "bold" }}>+${dataPoint.acumVentas.toFixed(2)}</span>
+                          <span style={{ color: "#00ff88", fontWeight: "bold" }}>+${ve.toFixed(2)}</span>
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px" }}>
                           <span style={{ color: "#ffd700" }}>Dividendos Acum.:</span>
-                          <span style={{ color: "#ffd700", fontWeight: "bold" }}>+${dataPoint.acumDividendos.toFixed(2)}</span>
+                          <span style={{ color: "#ffd700", fontWeight: "bold" }}>+${div.toFixed(2)}</span>
                         </div>
                       </div>
                     );
@@ -2480,22 +2492,22 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       {d.year} {d.year === activeYear && <span style={{ fontSize: "8px", color: "#00ff88", marginLeft: "4px", background: "#00ff8815", padding: "2px 6px", borderRadius: "4px" }}>ACTIVO</span>}
                     </td>
                     <td style={{ padding: "12px 8px", color: "#4aaeff", fontWeight: "600" }}>
-                      ${d.depositos.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      ${(d.depositos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </td>
-                    <td style={{ padding: "12px 8px", color: d.glTrading >= 0 ? "#aa88ff" : "#ff4455", fontWeight: "600" }}>
-                      ${d.glTrading.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    <td style={{ padding: "12px 8px", color: (d.glTrading || 0) >= 0 ? "#aa88ff" : "#ff4455", fontWeight: "600" }}>
+                      ${(d.glTrading || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </td>
-                    <td style={{ padding: "12px 8px", color: d.glVentas >= 0 ? "#00ff88" : "#ff4455", fontWeight: "600" }}>
-                      ${d.glVentas.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    <td style={{ padding: "12px 8px", color: (d.glVentas || 0) >= 0 ? "#00ff88" : "#ff4455", fontWeight: "600" }}>
+                      ${(d.glVentas || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </td>
                     <td style={{ padding: "12px 8px", color: "#ffd700", fontWeight: "600" }}>
-                      ${d.glDividendos.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      ${(d.glDividendos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </td>
-                    <td style={{ padding: "12px 8px", color: d.totalGL >= 0 ? "#fff" : "#ff4455", fontWeight: "700" }}>
-                      ${d.totalGL.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    <td style={{ padding: "12px 8px", color: (d.totalGL || 0) >= 0 ? "#fff" : "#ff4455", fontWeight: "700" }}>
+                      ${(d.totalGL || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </td>
                     <td style={{ padding: "12px 8px", color: "#00e5ff", fontWeight: "700" }}>
-                      ${d.valorFinal.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      ${(d.valorFinal || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))}
