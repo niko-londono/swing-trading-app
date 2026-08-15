@@ -574,9 +574,22 @@ export default function App() {
   const [editPlazo, setEditPlazo] = useState(false);
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState("TODOS");
 
+  const [yearSnapshots, setYearSnapshots] = useState(() => {
+    try {
+      const saved = localStorage.getItem("swingYearSnapshots");
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   useEffect(() => {
     localStorage.setItem("swingUnrealized", JSON.stringify(unrealized));
   }, [unrealized]);
+
+  useEffect(() => {
+    localStorage.setItem("swingYearSnapshots", JSON.stringify(yearSnapshots));
+  }, [yearSnapshots]);
 
   useEffect(() => {
     localStorage.setItem("swingPlazoConfig", JSON.stringify(plazoConfig));
@@ -644,6 +657,12 @@ export default function App() {
   const years = Object.keys(allData).map(Number).sort((a, b) => a - b);
 
   const goYear = (dir) => {
+    if (dir === 1) {
+      setYearSnapshots(prev => ({
+        ...prev,
+        [activeYear]: { portfolioValue: totalPortfolioValue, cash }
+      }));
+    }
     const next = activeYear + dir;
     setAllData(prev => prev[next] ? prev : { ...prev, [next]: emptyYear() });
     setActiveYear(next);
@@ -898,6 +917,15 @@ export default function App() {
     wsU["!cols"] = [{ wch: 10 }, { wch: 16 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, wsU, "Unrealized");
 
+    // Add YearSnapshots sheet
+    const snapshotDataRows = [
+      ["AÑO", "PORTFOLIO_VALUE", "CASH"],
+      ...Object.entries(yearSnapshots).map(([yr, val]) => [parseInt(yr), val?.portfolioValue || 0, val?.cash || 0])
+    ];
+    const wsS = XLSX.utils.aoa_to_sheet(snapshotDataRows);
+    wsS["!cols"] = [{ wch: 10 }, { wch: 18 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsS, "YearSnapshots");
+
     XLSX.writeFile(wb, "SwingTrading_Backup.xlsx");
     showToast("✅ Exportado correctamente");
   };
@@ -909,7 +937,7 @@ export default function App() {
     reader.onload = (ev) => {
       try {
         const wb = XLSX.read(ev.target.result, { type: "binary" });
-        const newAllData = {}, newPortfolio = []; let newCash = 0; let importedUnrealized = {};
+        const newAllData = {}, newPortfolio = []; let newCash = 0; let importedUnrealized = {}; let importedSnapshots = {};
         wb.SheetNames.forEach(name => {
           if (name.startsWith("Trading_")) {
             const yr = parseInt(name.replace("Trading_", "")); if (isNaN(yr)) return;
@@ -969,10 +997,24 @@ export default function App() {
               }
             }
           }
+          if (name === "YearSnapshots" || name === "Snapshots") {
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1 });
+            for (let r = 1; r < rows.length; r++) {
+              const row = rows[r]; if (!row || row[0] === undefined) continue;
+              const yr = parseInt(row[0]);
+              if (!isNaN(yr)) {
+                importedSnapshots[yr] = {
+                  portfolioValue: parseFloat(row[1]) || 0,
+                  cash: parseFloat(row[2]) || 0
+                };
+              }
+            }
+          }
         });
         if (!Object.keys(newAllData).length) { showToast("⚠️ Archivo no reconocido"); return; }
         setAllData(newAllData); setPortfolio(newPortfolio); setCash(newCash);
         if (Object.keys(importedUnrealized).length) setUnrealized(importedUnrealized);
+        if (Object.keys(importedSnapshots).length) setYearSnapshots(importedSnapshots);
         setActiveYear(Math.min(...Object.keys(newAllData).map(Number)));
         setTab("home");
         showToast(`✅ Importado: ${Object.keys(newAllData).length} año(s)`);
@@ -982,7 +1024,7 @@ export default function App() {
     e.target.value = "";
   };
 
-  const getAppSnapshot = () => ({ allData, portfolio, cash, goal, unrealized, plazoConfig });
+  const getAppSnapshot = () => ({ allData, portfolio, cash, goal, unrealized, plazoConfig, yearSnapshots });
 
   const loadSnapshot = (snap) => {
     if (snap.allData && Object.keys(snap.allData).length) {
@@ -994,6 +1036,7 @@ export default function App() {
     if (typeof snap.goal === "number") setGoal(snap.goal);
     if (snap.unrealized) setUnrealized(snap.unrealized);
     if (snap.plazoConfig) setPlazoConfig(snap.plazoConfig);
+    if (snap.yearSnapshots) setYearSnapshots(snap.yearSnapshots);
   };
 
   const pullFromSheet = async () => {
@@ -1583,8 +1626,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       const unrealizedUSD = unrealized[yr]?.usd || 0;
       const unrealizedPct = unrealized[yr]?.pct || 0;
       
-      // Realized percentage: relative to totalPortfolioValue
-      const realizedPct = totalPortfolioValue > 0 ? (totalRealizedGain / totalPortfolioValue) * 100 : 0;
+      // Capital for this year: live totalPortfolioValue for active year, snapshot value for past years
+      const yrPortfolioValue = (yr === activeYear)
+        ? totalPortfolioValue
+        : (yearSnapshots[yr]?.portfolioValue ?? totalPortfolioValue);
+
+      // Realized percentage: relative to yrPortfolioValue
+      const realizedPct = yrPortfolioValue > 0 ? (totalRealizedGain / yrPortfolioValue) * 100 : 0;
       
       return {
         year: yr,
@@ -1595,7 +1643,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         unrealizedUSD: parseFloat(unrealizedUSD.toFixed(2)),
         unrealizedPct: parseFloat(unrealizedPct.toFixed(2)),
         realizedUSD: parseFloat(totalRealizedGain.toFixed(2)),
-        realizedPct: parseFloat(realizedPct.toFixed(2))
+        realizedPct: parseFloat(realizedPct.toFixed(2)),
+        portfolioValue: parseFloat(yrPortfolioValue.toFixed(2))
       };
     }).sort((a, b) => a.year - b.year);
 
@@ -1717,6 +1766,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>UNREALIZED (MANUAL)</th>
                   <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>REALIZED (TOTAL)</th>
                   <th style={{ padding: "10px 8px", color: "#4aaeff", fontWeight: "600", letterSpacing: "1px" }}>TOTAL</th>
+                  <th style={{ padding: "10px 8px", color: "#00e5ff", fontWeight: "600", letterSpacing: "1px" }}>CAPITAL</th>
                 </tr>
               </thead>
               <tbody>
@@ -1766,6 +1816,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                           </>
                         );
                       })()}
+                    </td>
+                    <td style={{ padding: "12px 8px" }}>
+                      <span style={{ color: "#00e5ff", fontWeight: "700" }}>${d.portfolioValue.toLocaleString("es-ES", { minimumFractionDigits: 2 })}</span>
                     </td>
                   </tr>
                 ))}
