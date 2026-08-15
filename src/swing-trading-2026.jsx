@@ -1919,9 +1919,39 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <BarChart data={ventasData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
               <XAxis dataKey="mes" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: "#1a2a2a" }} contentStyle={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#4aaeff", marginBottom: "4px" }} formatter={(val, name) => [`$${val.toFixed(2)}`, name]} />
+              <ReferenceLine y={0} stroke="#334455" strokeDasharray="3 3" />
+              <Tooltip 
+                cursor={{ fill: "#1a2a2a" }} 
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const activeItems = payload.filter(p => p.value !== undefined && p.value !== null && p.value !== 0);
+                    if (!activeItems.length) return null;
+                    const totalNet = activeItems.reduce((sum, p) => sum + (Number(p.value) || 0), 0);
+                    return (
+                      <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "12px 14px", borderRadius: "8px", minWidth: "180px" }}>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "#4aaeff", marginBottom: "8px", letterSpacing: "1px" }}>{label}</div>
+                        {activeItems.map((item, idx) => (
+                          <div key={idx} style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "11px", marginBottom: "4px" }}>
+                            <span style={{ color: "#d4ccbf", fontWeight: "600" }}>{item.name}:</span>
+                            <span style={{ color: Number(item.value) >= 0 ? "#00ff88" : "#ff4455", fontWeight: "bold" }}>
+                              ${Number(item.value).toFixed(2)}
+                            </span>
+                          </div>
+                        ))}
+                        <div style={{ borderTop: "1px dashed #1a2a2a", marginTop: "8px", paddingTop: "6px", display: "flex", justifyContent: "space-between", fontSize: "11px", fontWeight: "bold" }}>
+                          <span style={{ color: "#c9c0b4" }}>NET TOTAL:</span>
+                          <span style={{ color: totalNet >= 0 ? "#00ff88" : "#ff4455" }}>
+                            ${totalNet.toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
               {ventaTickers.map((ticker, i) => (
-                <Bar key={ticker} dataKey={ticker} stackId="a" fill={PIE_COLORS[(i + 5) % PIE_COLORS.length]} radius={i === ventaTickers.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                <Bar key={ticker} dataKey={ticker} fill={PIE_COLORS[(i + 5) % PIE_COLORS.length]} radius={[3, 3, 3, 3]} />
               ))}
             </BarChart>
           </ResponsiveContainer>
