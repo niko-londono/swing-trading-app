@@ -2190,14 +2190,14 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     // 2. Calculate Initial Value for the selected range
     const startYear = filteredTimeline[0]?.year || START_YEAR;
 
-    const initial2026Compras = Object.values(allData[2026] || {})
+    const valorInicial2026 = Object.values(allData[2026] || {})
       .flatMap(m => m.accionesDetail || [])
       .filter(d => d.tipo === "compra")
       .reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
 
     const valorInicial = (startYear === START_YEAR)
-      ? initial2026Compras
-      : (yearSnapshots[startYear - 1]?.portfolioValue ?? initial2026Compras);
+      ? valorInicial2026
+      : (yearSnapshots[startYear - 1]?.portfolioValue ?? valorInicial2026);
 
     // 3. Build monthly data points with cumulative stacking
     let runningDeposito = 0;
@@ -2205,12 +2205,19 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     let runningVentas = 0;
     let runningDividendos = 0;
 
-    const chartPoints = filteredTimeline.map((tItem) => {
+    const totalPoints = filteredTimeline.length;
+
+    const chartPoints = filteredTimeline.map((tItem, idx) => {
       const row = tItem.row || {};
       const accDet = row.accionesDetail || [];
       const trDet = row.tradingDetail || [];
 
-      const deposito = accDet.filter(d => d.tipo === "compra").reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
+      // For initial year (2026), purchases are already captured in valorInicial.
+      // For subsequent years, new purchases add to runningDeposito.
+      const deposito = tItem.year > startYear
+        ? accDet.filter(d => d.tipo === "compra").reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0)
+        : 0;
+
       const glTrading = trDet.reduce((s, d) => s + (d.ganancia || 0), 0);
       const glVentas = accDet.filter(d => d.tipo === "venta").reduce((s, d) => s + (d.monto || 0), 0);
       const glDividendos = accDet.filter(d => d.tipo === "dividendo").reduce((s, d) => s + (d.monto || 0), 0);
@@ -2221,7 +2228,12 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       runningVentas += glVentas;
       runningDividendos += glDividendos;
 
-      const valorPortafolio = valorInicial + runningDeposito + runningTrading + runningVentas + runningDividendos;
+      let valorPortafolio = valorInicial + runningDeposito + runningTrading + runningVentas + runningDividendos;
+
+      // The last point of the timeline connects directly to totalPortfolioValue (live market value)
+      if (idx === totalPoints - 1) {
+        valorPortafolio = totalPortfolioValue;
+      }
 
       return {
         label: tItem.label,
