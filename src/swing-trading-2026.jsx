@@ -2190,14 +2190,43 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     // 2. Calculate Initial Value for the selected range
     const startYear = filteredTimeline[0]?.year || START_YEAR;
 
-    const valorInicial2026 = Object.values(allData[2026] || {})
-      .flatMap(m => m.accionesDetail || [])
-      .filter(d => d.tipo === "compra")
-      .reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
+    const get2026InitialValue = () => {
+      // 1. Check accionesDetail in 2026
+      const accDet2026 = Object.values(allData[2026] || {})
+        .flatMap(m => m?.accionesDetail || [])
+        .filter(d => d.tipo === "compra");
+      const sumAccDet = accDet2026.reduce((s, d) => {
+        const val = (d.shares && d.precioCompra) ? (d.shares * d.precioCompra) : (d.monto || 0);
+        return s + val;
+      }, 0);
+      if (sumAccDet > 0) return sumAccDet;
+
+      // 2. Check portfolio stock history for 2026
+      let sumHistory = 0;
+      portfolio.forEach(s => {
+        (s.history || []).forEach(h => {
+          if (h.tipo === "compra" && (h.year === 2026 || !h.year)) {
+            sumHistory += h.cashUsado || ((h.shares || 0) * (h.precioCompra || 0));
+          }
+        });
+      });
+      if (sumHistory > 0) return sumHistory;
+
+      // 3. Cost basis of portfolio
+      const sumCostBasis = portfolio.reduce((s, p) => s + ((p.shares || 0) * (p.price || 0)), 0);
+      if (sumCostBasis > 0) return sumCostBasis;
+
+      // 4. Default seed purchases sum
+      return 6282.06;
+    };
+
+    const valorInicial2026 = get2026InitialValue();
 
     const valorInicial = (startYear === START_YEAR)
       ? valorInicial2026
-      : (yearSnapshots[startYear - 1]?.portfolioValue ?? valorInicial2026);
+      : ((yearSnapshots[startYear - 1]?.portfolioValue && yearSnapshots[startYear - 1]?.portfolioValue > 0)
+          ? yearSnapshots[startYear - 1].portfolioValue
+          : valorInicial2026);
 
     // 3. Build monthly data points with cumulative stacking
     let runningDeposito = 0;
