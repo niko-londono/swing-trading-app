@@ -2628,52 +2628,213 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </ResponsiveContainer>
         </div>
 
-        {/* Annual Breakdown Table */}
-        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px" }}>
-          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "16px" }}>DESGLOSE DE RENDIMIENTO ANUAL (PERÍODO SELECCIONADO)</div>
-          
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", color: "#c9c0b4", fontSize: "11px", fontFamily: "inherit" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #1a2a2a", textAlign: "left" }}>
-                  <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>AÑO</th>
-                  <th style={{ padding: "10px 8px", color: "#4aaeff", fontWeight: "600", letterSpacing: "1px" }}>DEPÓSITOS</th>
-                  <th style={{ padding: "10px 8px", color: "#aa88ff", fontWeight: "600", letterSpacing: "1px" }}>G/L TRADING</th>
-                  <th style={{ padding: "10px 8px", color: "#00ff88", fontWeight: "600", letterSpacing: "1px" }}>G/L VENTAS</th>
-                  <th style={{ padding: "10px 8px", color: "#ffd700", fontWeight: "600", letterSpacing: "1px" }}>G/L DIVIDENDOS</th>
-                  <th style={{ padding: "10px 8px", color: "#fff", fontWeight: "600", letterSpacing: "1px" }}>TOTAL G/L</th>
-                  <th style={{ padding: "10px 8px", color: "#00e5ff", fontWeight: "600", letterSpacing: "1px" }}>VALOR FINAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {annualTableData.map(d => (
-                  <tr key={d.year} style={{ borderBottom: "1px solid #0f1a1a", background: d.year === activeYear ? "#00ff8804" : "none" }}>
-                    <td style={{ padding: "12px 8px", fontWeight: "bold", color: "#fff" }}>
-                      {d.year} {d.year === activeYear && <span style={{ fontSize: "8px", color: "#00ff88", marginLeft: "4px", background: "#00ff8815", padding: "2px 6px", borderRadius: "4px" }}>ACTIVO</span>}
-                    </td>
-                    <td style={{ padding: "12px 8px", color: "#4aaeff", fontWeight: "600" }}>
-                      ${(d.depositos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ padding: "12px 8px", color: (d.glTrading || 0) >= 0 ? "#aa88ff" : "#ff4455", fontWeight: "600" }}>
-                      ${(d.glTrading || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ padding: "12px 8px", color: (d.glVentas || 0) >= 0 ? "#00ff88" : "#ff4455", fontWeight: "600" }}>
-                      ${(d.glVentas || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ padding: "12px 8px", color: "#ffd700", fontWeight: "600" }}>
-                      ${(d.glDividendos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ padding: "12px 8px", color: (d.totalGL || 0) >= 0 ? "#fff" : "#ff4455", fontWeight: "700" }}>
-                      ${(d.totalGL || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-                    </td>
-                    <td style={{ padding: "12px 8px", color: "#00e5ff", fontWeight: "700" }}>
-                      ${(d.valorFinal || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Annual Breakdown Cards */}
+        <div>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "14px" }}>
+            DESGLOSE DE RENDIMIENTO ANUAL (PERÍODO SELECCIONADO)
           </div>
+
+          {annualTableData.map(d => {
+            const isActive = d.year === activeYear;
+            const unrealizedVal = unrealized[d.year]?.usd || 0;
+            const glTradingColor  = (d.glTrading  || 0) >= 0 ? "#aa88ff" : "#ff4455";
+            const glVentasColor   = (d.glVentas   || 0) >= 0 ? "#00ff88" : "#ff4455";
+            const glTotalColor    = (d.totalGL    || 0) >= 0 ? "#ffffff" : "#ff4455";
+
+            const metricCards = [
+              {
+                label: "G/L TRADING",
+                value: d.glTrading || 0,
+                color: glTradingColor,
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={glTradingColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                    <polyline points="17 6 23 6 23 12"/>
+                  </svg>
+                ),
+              },
+              {
+                label: "G/L VENTAS",
+                value: d.glVentas || 0,
+                color: glVentasColor,
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={glVentasColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                  </svg>
+                ),
+              },
+              {
+                label: "G/L DIVIDENDOS",
+                value: d.glDividendos || 0,
+                color: "#ffd700",
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                ),
+              },
+              {
+                label: "G/L VENTAS UNREALIZED",
+                value: unrealizedVal,
+                color: "#00e5ff",
+                icon: (
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"/>
+                    <line x1="12" y1="20" x2="12" y2="4"/>
+                    <line x1="6" y1="20" x2="6" y2="14"/>
+                    <polyline points="22 4 12 14 8 10 2 16"/>
+                  </svg>
+                ),
+              },
+            ];
+
+            return (
+              <div key={d.year} style={{
+                background: isActive ? "#0c1a14" : "#0c1318",
+                border: `1px solid ${isActive ? "#00ff8833" : "#1a2a2a"}`,
+                borderRadius: "18px",
+                padding: "20px",
+                marginBottom: "14px",
+              }}>
+                {/* Year badge */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
+                  <span style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color: "#fff" }}>{d.year}</span>
+                  {isActive && (
+                    <span style={{ fontSize: "9px", background: "#00ff8820", color: "#00ff88", border: "1px solid #00ff8844", padding: "3px 10px", borderRadius: "6px", letterSpacing: "2px" }}>
+                      ACTIVO
+                    </span>
+                  )}
+                </div>
+
+                {/* Main grid: metric cards + total + depositos + valor final */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr) 1fr 1fr 1fr",
+                  gap: "10px",
+                  alignItems: "stretch",
+                }}>
+                  {/* 4 metric cards */}
+                  {metricCards.map(({ label, value, color, icon }) => (
+                    <div key={label} style={{
+                      background: "#080d0f",
+                      borderRadius: "12px",
+                      padding: "14px",
+                      border: "1px solid #1a2a2a",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      minHeight: "110px",
+                    }}>
+                      <div style={{ fontSize: "7px", letterSpacing: "1.5px", color: "#9e968f", marginBottom: "10px" }}>{label}</div>
+                      <div style={{
+                        width: "44px", height: "44px",
+                        background: `${color}15`,
+                        borderRadius: "10px",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        marginBottom: "10px",
+                      }}>
+                        {icon}
+                      </div>
+                      <div style={{ borderTop: "1px solid #1a2a2a", paddingTop: "8px" }}>
+                        <div style={{ fontSize: isMobile ? "13px" : "15px", fontWeight: "700", color }}>
+                          {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* TOTAL G/L — center highlight */}
+                  <div style={{
+                    background: "#080d0f",
+                    borderRadius: "12px",
+                    padding: "14px",
+                    border: "1px solid #1a2a2a",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    minHeight: "110px",
+                  }}>
+                    <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#9e968f", marginBottom: "8px" }}>TOTAL G/L</div>
+                    <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
+                      {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ marginTop: "10px" }}>
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                        <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
+                        <path d="M22 12A10 10 0 0 0 12 2v10z" stroke={glTotalColor} strokeWidth="2"/>
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* DEPÓSITOS */}
+                  <div style={{
+                    background: "#080d0f",
+                    borderRadius: "12px",
+                    padding: "14px",
+                    border: "1px solid #1a2a2a",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    minHeight: "110px",
+                  }}>
+                    <div style={{ fontSize: "7px", letterSpacing: "1.5px", color: "#4aaeff", marginBottom: "10px" }}>DEPÓSITOS</div>
+                    <div style={{
+                      width: "44px", height: "44px",
+                      background: "#4aaeff15",
+                      borderRadius: "10px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      marginBottom: "10px",
+                    }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4aaeff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                      </svg>
+                    </div>
+                    <div style={{ borderTop: "1px solid #1a2a2a", paddingTop: "8px" }}>
+                      <div style={{ fontSize: isMobile ? "13px" : "15px", fontWeight: "700", color: "#4aaeff" }}>
+                        ${(d.depositos || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* VALOR FINAL */}
+                  <div style={{
+                    background: "linear-gradient(135deg, #071a1a, #0a1a2a)",
+                    borderRadius: "12px",
+                    padding: "14px",
+                    border: "1px solid #00e5ff33",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    minHeight: "110px",
+                  }}>
+                    <div style={{ fontSize: "7px", letterSpacing: "1.5px", color: "#00e5ff", marginBottom: "10px" }}>VALOR FINAL</div>
+                    <div style={{
+                      width: "44px", height: "44px",
+                      background: "#00e5ff15",
+                      borderRadius: "10px",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      marginBottom: "10px",
+                    }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                      </svg>
+                    </div>
+                    <div style={{ borderTop: "1px solid #00e5ff22", paddingTop: "8px" }}>
+                      <div style={{ fontSize: isMobile ? "16px" : "20px", fontWeight: "700", color: "#00e5ff" }}>
+                        ${(d.valorFinal || 0).toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                      </div>
+                      <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "3px" }}>(TOTAL G/L + DEPÓSITOS)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
       </div>
