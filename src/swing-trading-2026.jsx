@@ -306,6 +306,89 @@ function AddStockModal({ onSave, onClose }) {
   );
 }
 
+// ── Edit Compra Modal ──────────────────────────────────────────────────
+function EditCompraModal({ monthIdx, tx, onSave, onClose }) {
+  const [targetMonth, setTargetMonth] = useState(monthIdx);
+  const [shares, setShares] = useState(tx?.shares !== undefined ? tx.shares : "");
+  const [price, setPrice] = useState(tx?.precioCompra !== undefined ? tx.precioCompra : "");
+  const isMobile = window.innerWidth < 768;
+
+  const valid = parseFloat(shares) > 0 && parseFloat(price) > 0;
+  const total = valid ? parseFloat(shares) * parseFloat(price) : 0;
+
+  const handleSave = () => {
+    if (!valid) return;
+    onSave({
+      oldMonthIdx: monthIdx,
+      newMonthIdx: parseInt(targetMonth),
+      txId: tx.id,
+      shares: parseFloat(shares),
+      precioCompra: parseFloat(price)
+    });
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 200, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "480px", background: "#111c1c", borderTop: "1px solid #00ff8844", border: !isMobile ? "1px solid #00ff8844" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box" }}>
+        <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff88", marginBottom: "14px" }}>EDITAR COMPRA · {tx?.ticker}</div>
+        
+        {/* Selector de Mes */}
+        <div style={{ marginBottom: "12px" }}>
+          <div style={labelSt}>MES DE REGISTRO</div>
+          <select 
+            value={targetMonth} 
+            onChange={e => setTargetMonth(parseInt(e.target.value))}
+            style={selectSt}
+          >
+            {MONTHS.map((m, idx) => (
+              <option key={m} value={idx}>{m}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Acciones */}
+        <div style={{ marginBottom: "12px" }}>
+          <div style={labelSt}>NÚMERO DE ACCIONES</div>
+          <input 
+            type="number" 
+            step="any" 
+            placeholder="0.00" 
+            value={shares} 
+            onChange={e => setShares(e.target.value)} 
+            style={inputSt} 
+          />
+        </div>
+
+        {/* Precio de Compra */}
+        <div style={{ marginBottom: "14px" }}>
+          <div style={labelSt}>PRECIO DE COMPRA ($)</div>
+          <input 
+            type="number" 
+            step="any" 
+            placeholder="0.00" 
+            value={price} 
+            onChange={e => setPrice(e.target.value)} 
+            style={inputSt} 
+          />
+        </div>
+
+        {/* Total Invertido Preview */}
+        {valid && (
+          <div style={{ background: "#0a1818", borderRadius: "10px", padding: "10px 14px", marginBottom: "14px", border: "1px solid #00ff8822", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "9px", letterSpacing: "1px", color: "#9e968f" }}>TOTAL INVERTIDO:</span>
+            <span style={{ fontSize: "14px", fontWeight: "bold", color: "#00ff88", fontFamily: "'Courier New',monospace" }}>${total.toFixed(2)}</span>
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "15px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>Cancelar</button>
+          <button onClick={handleSave} disabled={!valid} style={{ flex: 2, padding: "15px", background: valid ? "linear-gradient(135deg,#004d2a,#007a42)" : "#1a2a2a", border: "none", borderRadius: "12px", color: valid ? "#00ff88" : "#556", fontSize: "13px", fontFamily: "inherit", cursor: valid ? "pointer" : "default", fontWeight: "700" }}>GUARDAR</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Add Trading Modal ─────────────────────────────────────────────────
 function AddTradingModal({ portfolioTickers, onSave, onClose }) {
   const [ticker, setTicker] = useState(portfolioTickers[0] || "");
@@ -539,6 +622,7 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState("idle"); // idle | pulling | pushing | ok | error
   const [updatingPrices, setUpdatingPrices] = useState(false);
   const [editTx, setEditTx] = useState(null); // { i, txId, type, field, label, value }
+  const [editCompraTx, setEditCompraTx] = useState(null); // { monthIdx, tx }
   const [editScriptUrl, setEditScriptUrl] = useState(false);
   const [confirmPush, setConfirmPush] = useState(false);
   const [unrealized, setUnrealized] = useState(() => {
@@ -784,6 +868,30 @@ export default function App() {
       return { ...prev, [activeYear]: yd };
     });
     setAddStock(false);
+  };
+
+  // ── Save Edited Compra (update shares, price, or change month) ─────
+  const handleSaveCompraTx = ({ oldMonthIdx, newMonthIdx, txId, shares, precioCompra }) => {
+    setAllData(prev => {
+      const yd = (prev[activeYear] ?? emptyYear()).map(r => ({ ...r, accionesDetail: [...(r.accionesDetail || [])] }));
+      const oldList = yd[oldMonthIdx]?.accionesDetail || [];
+      const targetTx = oldList.find(t => t.id === txId);
+      if (!targetTx) return prev;
+
+      const updatedTx = { ...targetTx, shares, precioCompra };
+
+      if (oldMonthIdx === newMonthIdx) {
+        yd[oldMonthIdx].accionesDetail = oldList.map(t => t.id === txId ? updatedTx : t);
+      } else {
+        yd[oldMonthIdx].accionesDetail = oldList.filter(t => t.id !== txId);
+        yd[newMonthIdx].accionesDetail = [...(yd[newMonthIdx]?.accionesDetail || []), updatedTx];
+      }
+
+      return { ...prev, [activeYear]: yd };
+    });
+
+    showToast("✓ Compra actualizada");
+    setEditCompraTx(null);
   };
 
   // ── Computed ──────────────────────────────────────────────────────
@@ -1136,7 +1244,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {tx.tipo !== "compra" && <span style={{ fontSize: "13px", fontWeight: "700", color: tx.monto >= 0 ? "#00ff88" : "#ff4455" }}>{fmt(tx.monto)}</span>}
             {tx.tipo === "compra" && <span style={{ fontSize: "11px", color: "#9e968f" }}>{tx.shares}u @ ${tx.precioCompra}</span>}
-            {tx.tipo === "dividendo" && onEdit && <button onClick={() => onEdit("monto", `DIVIDENDO ${tx.ticker}`, tx.monto)} style={{ background: "none", border: "none", color: "#ffd70099", fontSize: "12px", cursor: "pointer", padding: "0 4px" }}>✎</button>}
+            {onEdit && <button onClick={onEdit} style={{ background: "none", border: "none", color: "#ffd70099", fontSize: "12px", cursor: "pointer", padding: "0 4px" }} title="Editar">✎</button>}
             {onRemove && <button onClick={onRemove} style={{ background: "none", border: "none", color: "#ff445566", fontSize: "12px", cursor: "pointer", padding: "0 2px" }}>✕</button>}
           </div>
         </div>
@@ -1382,7 +1490,20 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   </div>
                   {txs.length === 0
                     ? <div style={{ fontSize: "10px", color: "#9e968f", textAlign: "center", padding: "8px 0" }}>Sin transacciones registradas</div>
-                    : txs.map(tx => <TxCard key={tx.id} tx={tx} onRemove={() => removeTransaction(i, tx.id)} onEdit={(field, label, value) => setEditTx({ i, txId: tx.id, type: "acciones", field, label, value })} />)
+                    : txs.map(tx => (
+                        <TxCard 
+                          key={tx.id} 
+                          tx={tx} 
+                          onRemove={() => removeTransaction(i, tx.id)} 
+                          onEdit={() => {
+                            if (tx.tipo === "compra") {
+                              setEditCompraTx({ monthIdx: i, tx });
+                            } else {
+                              setEditTx({ i, txId: tx.id, type: "acciones", field: "monto", label: `${tx.tipo.toUpperCase()} ${tx.ticker}`, value: tx.monto });
+                            }
+                          }} 
+                        />
+                      ))
                   }
                 </div>
 
@@ -2657,6 +2778,14 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             }));
           }}
           onClose={() => setEditUnrealized(null)}
+        />
+      )}
+      {editCompraTx && (
+        <EditCompraModal
+          monthIdx={editCompraTx.monthIdx}
+          tx={editCompraTx.tx}
+          onSave={handleSaveCompraTx}
+          onClose={() => setEditCompraTx(null)}
         />
       )}
       {editTx && (
