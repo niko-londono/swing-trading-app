@@ -1104,6 +1104,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     { id: "tabla", icon: "⊞", label: "TABLA" },
     { id: "resumen", icon: "◎", label: "RESUMEN" },
     { id: "graficos", icon: "📊", label: "GRÁFICOS" },
+    { id: "performance", icon: "📈", label: "PERFORMANCE" },
     { id: "ai", icon: "⟁", label: "ANÁLISIS" },
   ];
 
@@ -2145,6 +2146,325 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   );
 };
 
+  const PerformanceScreen = () => {
+    const [timeFilter, setTimeFilter] = useState("ALL");
+
+    // 1. Build full timeline array of all months across all registered years in allData
+    const allYears = Object.keys(allData).map(Number).sort((a, b) => a - b);
+    const fullTimeline = [];
+    allYears.forEach(yr => {
+      const months = allData[yr] || [];
+      months.forEach((mRow, mIdx) => {
+        fullTimeline.push({
+          year: yr,
+          monthIdx: mIdx,
+          monthShort: MONTHS_SHORT[mIdx],
+          label: `${MONTHS_SHORT[mIdx]} ${yr}`,
+          row: mRow
+        });
+      });
+    });
+
+    // Determine timeline range based on timeFilter
+    let filteredTimeline = [...fullTimeline];
+    if (timeFilter === "YTD") {
+      filteredTimeline = fullTimeline.filter(t => t.year === activeYear);
+    } else if (timeFilter === "1Y") {
+      filteredTimeline = fullTimeline.slice(-12);
+    } else if (timeFilter === "2Y") {
+      filteredTimeline = fullTimeline.slice(-24);
+    } else if (timeFilter === "3Y") {
+      filteredTimeline = fullTimeline.slice(-36);
+    } else if (timeFilter === "4Y") {
+      filteredTimeline = fullTimeline.slice(-48);
+    } else if (timeFilter === "5Y") {
+      filteredTimeline = fullTimeline.slice(-60);
+    } else if (timeFilter === "ALL") {
+      filteredTimeline = fullTimeline;
+    }
+
+    if (filteredTimeline.length === 0) {
+      filteredTimeline = fullTimeline.slice(-12);
+    }
+
+    // 2. Calculate Initial Value for the selected range
+    const startYear = filteredTimeline[0]?.year || START_YEAR;
+
+    const initial2026Compras = Object.values(allData[2026] || {})
+      .flatMap(m => m.accionesDetail || [])
+      .filter(d => d.tipo === "compra")
+      .reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
+
+    const valorInicial = (startYear === START_YEAR)
+      ? initial2026Compras
+      : (yearSnapshots[startYear - 1]?.portfolioValue ?? initial2026Compras);
+
+    // 3. Build monthly data points with cumulative stacking
+    let runningDeposito = 0;
+    let runningTrading = 0;
+    let runningVentas = 0;
+    let runningDividendos = 0;
+
+    const chartPoints = filteredTimeline.map((tItem) => {
+      const row = tItem.row || {};
+      const accDet = row.accionesDetail || [];
+      const trDet = row.tradingDetail || [];
+
+      const deposito = accDet.filter(d => d.tipo === "compra").reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
+      const glTrading = trDet.reduce((s, d) => s + (d.ganancia || 0), 0);
+      const glVentas = accDet.filter(d => d.tipo === "venta").reduce((s, d) => s + (d.monto || 0), 0);
+      const glDividendos = accDet.filter(d => d.tipo === "dividendo").reduce((s, d) => s + (d.monto || 0), 0);
+      const glTotal = glTrading + glVentas + glDividendos;
+
+      runningDeposito += deposito;
+      runningTrading += glTrading;
+      runningVentas += glVentas;
+      runningDividendos += glDividendos;
+
+      const valorPortafolio = valorInicial + runningDeposito + runningTrading + runningVentas + runningDividendos;
+
+      return {
+        label: tItem.label,
+        year: tItem.year,
+        monthIdx: tItem.monthIdx,
+        deposito,
+        glTrading,
+        glVentas,
+        glDividendos,
+        glTotal,
+        base: valorInicial,
+        acumDeposito: runningDeposito,
+        acumTrading: runningTrading,
+        acumVentas: runningVentas,
+        acumDividendos: runningDividendos,
+        valorPortafolio: parseFloat(valorPortafolio.toFixed(2))
+      };
+    });
+
+    // 4. Calculate Top KPIs
+    const valorActual = totalPortfolioValue;
+    const crecimientoTotal = valorActual - valorInicial;
+    const roiPeriodo = valorInicial > 0 ? (crecimientoTotal / valorInicial) * 100 : 0;
+
+    // 5. Build Annual Breakdown Table data for years present in filteredTimeline
+    const uniqueYears = Array.from(new Set(filteredTimeline.map(t => t.year)));
+    const annualTableData = uniqueYears.map(yr => {
+      const yrMonths = allData[yr] || [];
+      let totalDep = 0;
+      let totalTr = 0;
+      let totalVe = 0;
+      let totalDiv = 0;
+
+      yrMonths.forEach(row => {
+        const accDet = row.accionesDetail || [];
+        const trDet = row.tradingDetail || [];
+        totalDep += accDet.filter(d => d.tipo === "compra").reduce((s, d) => s + (d.shares * (d.precioCompra || 0)), 0);
+        totalTr += trDet.reduce((s, d) => s + (d.ganancia || 0), 0);
+        totalVe += accDet.filter(d => d.tipo === "venta").reduce((s, d) => s + (d.monto || 0), 0);
+        totalDiv += accDet.filter(d => d.tipo === "dividendo").reduce((s, d) => s + (d.monto || 0), 0);
+      });
+
+      const totalGLYear = totalTr + totalVe + totalDiv;
+      const valorFinal = (yr === activeYear)
+        ? totalPortfolioValue
+        : (yearSnapshots[yr]?.portfolioValue ?? totalPortfolioValue);
+
+      return {
+        year: yr,
+        depositos: totalDep,
+        glTrading: totalTr,
+        glVentas: totalVe,
+        glDividendos: totalDiv,
+        totalGL: totalGLYear,
+        valorFinal
+      };
+    });
+
+    return (
+      <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        
+        {/* Top Controls & Time Filter Selector */}
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>◈ RENDIMIENTO Y EVOLUCIÓN DEL PORTAFOLIO</div>
+            <div style={{ fontSize: "10px", color: "#9e968f" }}>Desglose de crecimiento por depósitos, trading, ventas y dividendos</div>
+          </div>
+
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            {["YTD", "1Y", "2Y", "3Y", "4Y", "5Y", "ALL"].map(filter => {
+              const isSelected = timeFilter === filter;
+              return (
+                <button
+                  key={filter}
+                  onClick={() => setTimeFilter(filter)}
+                  style={{
+                    background: isSelected ? "#00ff8818" : "#080d0f",
+                    border: isSelected ? "1px solid #00ff8888" : "1px solid #1a2a2a",
+                    borderRadius: "8px",
+                    color: isSelected ? "#00ff88" : "#9e968f",
+                    fontSize: isMobile ? "9px" : "10px",
+                    fontWeight: isSelected ? "bold" : "normal",
+                    padding: "6px 12px",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    letterSpacing: "1px",
+                    transition: "all 0.15s"
+                  }}
+                >
+                  {filter}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* 4 KPI Cards */}
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" }}>
+          
+          {/* Card 1: VALOR INICIAL */}
+          <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "14px", padding: "16px 20px" }}>
+            <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#9e968f", marginBottom: "8px", fontWeight: "600" }}>VALOR INICIAL</div>
+            <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff", lineHeight: 1 }}>
+              ${valorInicial.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+            </div>
+            <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Capital base del período</div>
+          </div>
+
+          {/* Card 2: VALOR ACTUAL */}
+          <div style={{ background: "#0c1318", border: "1px solid #00e5ff33", borderRadius: "14px", padding: "16px 20px", borderLeft: "3px solid #00e5ff" }}>
+            <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#00e5ff", marginBottom: "8px", fontWeight: "600" }}>VALOR ACTUAL (LIVE)</div>
+            <div style={{ fontSize: "22px", fontWeight: "700", color: "#00e5ff", lineHeight: 1 }}>
+              ${valorActual.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+            </div>
+            <div style={{ fontSize: "9px", color: "#00e5ff88", marginTop: "8px" }}>Portafolio total actual</div>
+          </div>
+
+          {/* Card 3: CRECIMIENTO TOTAL */}
+          <div style={{ background: "#0c1318", border: `1px solid ${crecimientoTotal >= 0 ? "#00ff8833" : "#ff445533"}`, borderRadius: "14px", padding: "16px 20px", borderLeft: `3px solid ${crecimientoTotal >= 0 ? "#00ff88" : "#ff4455"}` }}>
+            <div style={{ fontSize: "10px", letterSpacing: "1px", color: crecimientoTotal >= 0 ? "#00ff88" : "#ff4455", marginBottom: "8px", fontWeight: "600" }}>CRECIMIENTO TOTAL</div>
+            <div style={{ fontSize: "22px", fontWeight: "700", color: crecimientoTotal >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
+              {crecimientoTotal >= 0 ? "+" : ""}${crecimientoTotal.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+            </div>
+            <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Diferencia $ del período</div>
+          </div>
+
+          {/* Card 4: ROI DEL PERÍODO */}
+          <div style={{ background: "#0c1318", border: `1px solid ${roiPeriodo >= 0 ? "#ffd70033" : "#ff445533"}`, borderRadius: "14px", padding: "16px 20px", borderLeft: `3px solid ${roiPeriodo >= 0 ? "#ffd700" : "#ff4455"}` }}>
+            <div style={{ fontSize: "10px", letterSpacing: "1px", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", marginBottom: "8px", fontWeight: "600" }}>ROI DEL PERÍODO</div>
+            <div style={{ fontSize: "22px", fontWeight: "700", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", lineHeight: 1 }}>
+              {roiPeriodo >= 0 ? "+" : ""}{roiPeriodo.toFixed(2)}%
+            </div>
+            <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Retorno sobre inversión</div>
+          </div>
+
+        </div>
+
+        {/* Stacked Area Chart */}
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "16px" }}>CRECIMIENTO ACUMULADO Y ORIGEN DEL CAPITAL</div>
+          
+          <ResponsiveContainer width="100%" height={320}>
+            <AreaChart data={chartPoints} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+              <XAxis dataKey="label" tick={{ fontSize: 8, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 8, fill: "#9e968f" }} axisLine={false} tickLine={false} tickFormatter={v => `$${v}`} />
+              <Tooltip 
+                cursor={{ stroke: "#00ff8855", strokeWidth: 1 }}
+                content={({ active, payload, label }) => {
+                  if (active && payload && payload.length) {
+                    const dataPoint = payload[0].payload;
+                    return (
+                      <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "14px 16px", borderRadius: "10px", minWidth: "210px" }}>
+                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#00ff88", marginBottom: "8px", letterSpacing: "1px" }}>{label}</div>
+                        <div style={{ fontSize: "14px", fontWeight: "bold", color: "#fff", marginBottom: "10px", borderBottom: "1px solid #1a2a2a", paddingBottom: "6px" }}>
+                          Portafolio: ${dataPoint.valorPortafolio.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
+                          <span style={{ color: "#9e968f" }}>Base:</span>
+                          <span style={{ color: "#c0c8cc", fontWeight: "bold" }}>${dataPoint.base.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
+                          <span style={{ color: "#4aaeff" }}>Depósitos Acum.:</span>
+                          <span style={{ color: "#4aaeff", fontWeight: "bold" }}>+${dataPoint.acumDeposito.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
+                          <span style={{ color: "#aa88ff" }}>Trading Acum.:</span>
+                          <span style={{ color: "#aa88ff", fontWeight: "bold" }}>+${dataPoint.acumTrading.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
+                          <span style={{ color: "#00ff88" }}>Ventas Acum.:</span>
+                          <span style={{ color: "#00ff88", fontWeight: "bold" }}>+${dataPoint.acumVentas.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px" }}>
+                          <span style={{ color: "#ffd700" }}>Dividendos Acum.:</span>
+                          <span style={{ color: "#ffd700", fontWeight: "bold" }}>+${dataPoint.acumDividendos.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                }}
+              />
+              <Area type="monotone" dataKey="base" stackId="a" stroke="#1a2a2a" fill="#1a2a2a" fillOpacity={0.8} />
+              <Area type="monotone" dataKey="acumDeposito" stackId="a" stroke="#4aaeff" fill="#4aaeff" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="acumTrading" stackId="a" stroke="#aa88ff" fill="#aa88ff" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="acumVentas" stackId="a" stroke="#00ff88" fill="#00ff88" fillOpacity={0.6} />
+              <Area type="monotone" dataKey="acumDividendos" stackId="a" stroke="#ffd700" fill="#ffd700" fillOpacity={0.6} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Annual Breakdown Table */}
+        <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "20px" }}>
+          <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "16px" }}>DESGLOSE DE RENDIMIENTO ANUAL (PERÍODO SELECCIONADO)</div>
+          
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", color: "#c9c0b4", fontSize: "11px", fontFamily: "inherit" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #1a2a2a", textAlign: "left" }}>
+                  <th style={{ padding: "10px 8px", color: "#9e968f", fontWeight: "500", letterSpacing: "1px" }}>AÑO</th>
+                  <th style={{ padding: "10px 8px", color: "#4aaeff", fontWeight: "600", letterSpacing: "1px" }}>DEPÓSITOS</th>
+                  <th style={{ padding: "10px 8px", color: "#aa88ff", fontWeight: "600", letterSpacing: "1px" }}>G/L TRADING</th>
+                  <th style={{ padding: "10px 8px", color: "#00ff88", fontWeight: "600", letterSpacing: "1px" }}>G/L VENTAS</th>
+                  <th style={{ padding: "10px 8px", color: "#ffd700", fontWeight: "600", letterSpacing: "1px" }}>G/L DIVIDENDOS</th>
+                  <th style={{ padding: "10px 8px", color: "#fff", fontWeight: "600", letterSpacing: "1px" }}>TOTAL G/L</th>
+                  <th style={{ padding: "10px 8px", color: "#00e5ff", fontWeight: "600", letterSpacing: "1px" }}>VALOR FINAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {annualTableData.map(d => (
+                  <tr key={d.year} style={{ borderBottom: "1px solid #0f1a1a", background: d.year === activeYear ? "#00ff8804" : "none" }}>
+                    <td style={{ padding: "12px 8px", fontWeight: "bold", color: "#fff" }}>
+                      {d.year} {d.year === activeYear && <span style={{ fontSize: "8px", color: "#00ff88", marginLeft: "4px", background: "#00ff8815", padding: "2px 6px", borderRadius: "4px" }}>ACTIVO</span>}
+                    </td>
+                    <td style={{ padding: "12px 8px", color: "#4aaeff", fontWeight: "600" }}>
+                      ${d.depositos.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: "12px 8px", color: d.glTrading >= 0 ? "#aa88ff" : "#ff4455", fontWeight: "600" }}>
+                      ${d.glTrading.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: "12px 8px", color: d.glVentas >= 0 ? "#00ff88" : "#ff4455", fontWeight: "600" }}>
+                      ${d.glVentas.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: "12px 8px", color: "#ffd700", fontWeight: "600" }}>
+                      ${d.glDividendos.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: "12px 8px", color: d.totalGL >= 0 ? "#fff" : "#ff4455", fontWeight: "700" }}>
+                      ${d.totalGL.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: "12px 8px", color: "#00e5ff", fontWeight: "700" }}>
+                      ${d.valorFinal.toLocaleString("es-ES", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    );
+  };
+
   const AIScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
       <div style={{ background: "linear-gradient(135deg,#0a1628,#071a1a)", border: "1px solid #4af3", borderRadius: "18px", padding: "20px", marginBottom: "14px" }}>
@@ -2337,7 +2657,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       <div style={{ padding: "16px 20px 12px", paddingTop: "calc(16px + env(safe-area-inset-top))", borderBottom: "1px solid #0f1a1a", flexShrink: 0 }}>
         <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866" }}>◈ SWING TRADING</div>
         <div style={{ fontSize: "20px", fontWeight: "700", color: "#fff", marginBottom: "12px" }}>
-          {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos" : "Análisis AI"}
+          {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos" : tab === "performance" ? "Performance" : "Análisis AI"}
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <button onClick={updatePrices} disabled={updatingPrices || portfolio.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px", background: updatingPrices ? "#1a2a1a" : "#0a1f12", border: "1px solid #00ff8844", borderRadius: "8px", padding: "8px 12px", color: updatingPrices ? "#9e968f" : "#00ff88", fontSize: "10px", fontFamily: "inherit", cursor: updatingPrices || portfolio.length === 0 ? "default" : "pointer", transition: "all 0.2s" }}>
@@ -2353,6 +2673,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         {tab === "tabla" && <TablaScreen />}
         {tab === "resumen" && <ResumenScreen />}
         {tab === "graficos" && <GraficosScreen />}
+        {tab === "performance" && <PerformanceScreen />}
         {tab === "ai" && <AIScreen />}
       </div>
       <div style={{ display: "flex", background: "#080d0f", borderTop: "1px solid #0f1a1a", paddingBottom: "env(safe-area-inset-bottom, 0px)", flexShrink: 0 }}>
@@ -2420,7 +2741,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         {/* Top bar */}
         <div style={{ padding: "20px 32px 16px", borderBottom: "1px solid #0f1a1a", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff" }}>
-            {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos y Métricas" : "Análisis AI"}
+            {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos y Métricas" : tab === "performance" ? "Performance del Portafolio" : "Análisis AI"}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <button onClick={updatePrices} disabled={updatingPrices || portfolio.length === 0} style={{ display: "flex", alignItems: "center", gap: "6px", background: updatingPrices ? "#1a2a1a" : "#0a1f12", border: "1px solid #00ff8844", borderRadius: "8px", padding: "8px 12px", color: updatingPrices ? "#9e968f" : "#00ff88", fontSize: "10px", fontFamily: "inherit", cursor: updatingPrices || portfolio.length === 0 ? "default" : "pointer", transition: "all 0.2s" }}>
@@ -2437,6 +2758,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           {tab === "tabla" && <TablaScreen />}
           {tab === "resumen" && <ResumenScreen />}
           {tab === "graficos" && <GraficosScreen />}
+          {tab === "performance" && <PerformanceScreen />}
           {tab === "ai" && <AIScreen />}
         </div>
       </div>
