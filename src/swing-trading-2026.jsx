@@ -824,6 +824,9 @@ export default function App() {
       }));
       setCash(prev => parseFloat((prev + cashRec).toFixed(2)));
     }
+    if (tx.tipo === "dividendo") {
+      setCash(prev => parseFloat((prev + (tx.monto || 0)).toFixed(2)));
+    }
   };
 
   const removeTransaction = (monthIdx, txId) => {
