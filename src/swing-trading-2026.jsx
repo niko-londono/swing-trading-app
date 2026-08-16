@@ -2308,6 +2308,27 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       filteredTimeline = fullTimeline.slice(-12);
     }
 
+    // ── TRIM future months: only keep up to the last month with actual data ──
+    const hasActivity = (row) => {
+      if (!row) return false;
+      const tr  = (row.tradingDetail  || []).length > 0;
+      const acc = (row.accionesDetail || []).filter(d => d.tipo !== "compra").length > 0;
+      const man = (row.trading !== "" && row.trading !== undefined && row.trading !== null) ||
+                  (row.capital !== "" && row.capital !== undefined && row.capital !== null);
+      return tr || acc || man;
+    };
+
+    // Find the last index with activity in the active year
+    let lastActiveIdx = filteredTimeline.length - 1;
+    for (let i = filteredTimeline.length - 1; i >= 0; i--) {
+      if (hasActivity(filteredTimeline[i].row)) {
+        lastActiveIdx = i;
+        break;
+      }
+    }
+    // Trim: don't show months beyond the last active one
+    filteredTimeline = filteredTimeline.slice(0, lastActiveIdx + 1);
+
     // 2. Calculate Initial Value dynamically from stock purchases (tipo === "compra") in January 2026
     const get2026InitialValue = () => {
       try {
