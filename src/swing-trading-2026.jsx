@@ -2583,11 +2583,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
           {/* Card 4: ROI DEL PERÍODO */}
           <div style={{ background: "#0c1318", border: `1px solid ${roiPeriodo >= 0 ? "#ffd70033" : "#ff445533"}`, borderRadius: "14px", padding: "16px 20px", borderLeft: `3px solid ${roiPeriodo >= 0 ? "#ffd700" : "#ff4455"}` }}>
-            <div style={{ fontSize: "10px", letterSpacing: "1px", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", marginBottom: "8px", fontWeight: "600" }}>ROI DEL PERÍODO</div>
+            <div style={{ fontSize: "10px", letterSpacing: "1px", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", marginBottom: "8px", fontWeight: "600" }}>CRECIMIENTO TOTAL %</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: roiPeriodo >= 0 ? "#ffd700" : "#ff4455", lineHeight: 1 }}>
               {roiPeriodo >= 0 ? "+" : ""}{(roiPeriodo || 0).toFixed(2)}%
             </div>
-            <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Retorno sobre inversión</div>
+            <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Crecimiento del portafolio</div>
           </div>
 
         </div>
