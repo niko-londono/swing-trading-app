@@ -2665,7 +2665,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             const glVentasColor   = (d.glVentas   || 0) >= 0 ? "#00ff88" : "#ff4455";
             const glTotalColor    = (d.totalGL    || 0) >= 0 ? "#ffffff" : "#ff4455";
             const dep = d.depositos || 0;
-            const pct = (val) => dep > 0 ? ((val / dep) * 100).toFixed(2) + "%" : "—";
+            const base = d.valorFinal || 1;
+            const pct = (val) => base > 0 ? ((val / base) * 100).toFixed(2) + "%" : "—";
 
             const metricCards = [
               {
@@ -2775,7 +2776,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                         <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color }}>
                           {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </div>
-                        <div style={{ fontSize: "9px", color: `${color}99`, marginTop: "3px" }}>{pctVal} del capital</div>
+                        <div style={{ fontSize: "9px", color: `${color}99`, marginTop: "3px" }}>{pctVal} del portafolio</div>
                       </div>
                     </div>
                   ))}
@@ -2798,7 +2799,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <div style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
                       {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </div>
-                    <div style={{ fontSize: "9px", color: `${glTotalColor}99` }}>{pct(d.totalGL || 0)} del capital</div>
+                    <div style={{ fontSize: "9px", color: `${glTotalColor}99` }}>{pct(d.totalGL || 0)} del portafolio</div>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
                       <path d="M22 12A10 10 0 0 0 12 2v10z" stroke={glTotalColor} strokeWidth="2"/>
@@ -2834,7 +2835,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color: "#4aaeff" }}>
                         ${(d.depositos || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </div>
-                      <div style={{ fontSize: "9px", color: "#4aaeff99", marginTop: "3px" }}>base de capital</div>
+                      <div style={{ fontSize: "9px", color: "#4aaeff99", marginTop: "3px" }}>{pct(d.depositos || 0)} del portafolio</div>
                     </div>
                   </div>
 
@@ -2867,7 +2868,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ fontSize: isMobile ? "17px" : "22px", fontWeight: "700", color: "#00e5ff" }}>
                         ${(d.valorFinal || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </div>
-                      <div style={{ fontSize: "9px", color: "#00e5ff99", marginTop: "3px" }}>{pct(d.valorFinal || 0)} del capital</div>
+                      <div style={{ fontSize: "9px", color: "#00e5ff99", marginTop: "3px" }}>100% del portafolio</div>
                       <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "2px" }}>(TOTAL G/L + DEPÓSITOS)</div>
                     </div>
                   </div>
