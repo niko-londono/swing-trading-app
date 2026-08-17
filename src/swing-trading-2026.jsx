@@ -2664,12 +2664,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             const glTradingColor  = (d.glTrading  || 0) >= 0 ? "#aa88ff" : "#ff4455";
             const glVentasColor   = (d.glVentas   || 0) >= 0 ? "#00ff88" : "#ff4455";
             const glTotalColor    = (d.totalGL    || 0) >= 0 ? "#ffffff" : "#ff4455";
+            const dep = d.depositos || 0;
+            const pct = (val) => dep > 0 ? ((val / dep) * 100).toFixed(2) + "%" : "—";
 
             const metricCards = [
               {
                 label: "G/L TRADING",
                 value: d.glTrading || 0,
                 color: glTradingColor,
+                pct: pct(d.glTrading || 0),
                 icon: (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={glTradingColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
@@ -2678,9 +2681,10 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 ),
               },
               {
-                label: "G/L VENTAS",
+                label: "G/L VENTAS RL",
                 value: d.glVentas || 0,
                 color: glVentasColor,
+                pct: pct(d.glVentas || 0),
                 icon: (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={glVentasColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
@@ -2692,6 +2696,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 label: "G/L DIVIDENDOS",
                 value: d.glDividendos || 0,
                 color: "#ffd700",
+                pct: pct(d.glDividendos || 0),
                 icon: (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffd700" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/>
@@ -2701,9 +2706,10 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 ),
               },
               {
-                label: "G/L VENTAS UNREALIZED",
+                label: "G/L VENTAS UNRL",
                 value: unrealizedVal,
                 color: "#00e5ff",
+                pct: pct(unrealizedVal),
                 icon: (
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00e5ff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="20" x2="18" y2="10"/>
@@ -2741,7 +2747,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   alignItems: "stretch",
                 }}>
                   {/* 4 metric cards */}
-                  {metricCards.map(({ label, value, color, icon }) => (
+                  {metricCards.map(({ label, value, color, icon, pct: pctVal }) => (
                     <div key={label} style={{
                       background: "#080d0f",
                       borderRadius: "12px",
@@ -2753,7 +2759,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       justifyContent: "center",
                       textAlign: "center",
                       minHeight: "130px",
-                      gap: "10px",
+                      gap: "8px",
                     }}>
                       <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "1.5px", color, fontWeight: "600" }}>{label}</div>
                       <div style={{
@@ -2769,6 +2775,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                         <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color }}>
                           {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </div>
+                        <div style={{ fontSize: "9px", color: `${color}99`, marginTop: "3px" }}>{pctVal} del capital</div>
                       </div>
                     </div>
                   ))}
@@ -2785,12 +2792,13 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     justifyContent: "center",
                     textAlign: "center",
                     minHeight: "130px",
-                    gap: "10px",
+                    gap: "8px",
                   }}>
                     <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "2px", color: glTotalColor, fontWeight: "600" }}>TOTAL G/L</div>
                     <div style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
                       {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                     </div>
+                    <div style={{ fontSize: "9px", color: `${glTotalColor}99` }}>{pct(d.totalGL || 0)} del capital</div>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
                       <path d="M22 12A10 10 0 0 0 12 2v10z" stroke={glTotalColor} strokeWidth="2"/>
@@ -2826,6 +2834,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color: "#4aaeff" }}>
                         ${(d.depositos || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </div>
+                      <div style={{ fontSize: "9px", color: "#4aaeff99", marginTop: "3px" }}>base de capital</div>
                     </div>
                   </div>
 
@@ -2858,7 +2867,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ fontSize: isMobile ? "17px" : "22px", fontWeight: "700", color: "#00e5ff" }}>
                         ${(d.valorFinal || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                       </div>
-                      <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "4px" }}>(TOTAL G/L + DEPÓSITOS)</div>
+                      <div style={{ fontSize: "9px", color: "#00e5ff99", marginTop: "3px" }}>{pct(d.valorFinal || 0)} del capital</div>
+                      <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "2px" }}>(TOTAL G/L + DEPÓSITOS)</div>
                     </div>
                   </div>
                 </div>
