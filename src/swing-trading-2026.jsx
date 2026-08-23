@@ -1814,7 +1814,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>TRADING</div>
               <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
-                ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
                 <span>{activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>prom.</span></span>
@@ -1823,7 +1823,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 )}
                 {activeData.avgCapitalUSD > 0 && (
                   <span style={{ fontSize: "11px", color: "#aa88ffaa" }}>
-                    ${activeData.avgCapitalUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>cap prom.</span>
+                    ${activeData.avgCapitalUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>cap prom.</span>
                   </span>
                 )}
                 {activeData.avgGainUSD !== 0 && (
@@ -1831,7 +1831,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 )}
                 {activeData.avgGainUSD !== 0 && (
                   <span style={{ fontSize: "11px", color: activeData.avgGainUSD >= 0 ? "#00ff88aa" : "#ff4455aa" }}>
-                    ${activeData.avgGainUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>gan. prom.</span>
+                    ${activeData.avgGainUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>gan. prom.</span>
                   </span>
                 )}
               </div>
@@ -1844,7 +1844,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 onClick={() => setEditUnrealized({ year: activeData.year, field: "usd", label: `${activeData.year} · UNREALIZED ($)`, value: activeData.unrealizedUSD })}
                 style={{ fontSize: "22px", fontWeight: "700", color: "#ffd700", lineHeight: 1, cursor: "pointer", borderBottom: "1px dashed #ffd70055", display: "inline-block" }}
               >
-                ${activeData.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                ${activeData.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ marginTop: "8px" }}>
                 <span 
@@ -1861,7 +1861,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <div style={{ background: "#080d0f", border: "1px solid #00ff8833", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #00ff88" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#00ff88", marginBottom: "8px", fontWeight: "600" }}>REALIZED (TOTAL)</div>
               <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.realizedUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
-                ${activeData.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                ${activeData.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
                 {activeData.realizedPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
@@ -1872,7 +1872,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <div style={{ background: "#080d0f", border: "1px solid #4aaeff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #4aaeff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#4aaeff", marginBottom: "8px", fontWeight: "600" }}>REND. ANUAL</div>
               <div style={{ fontSize: "22px", fontWeight: "700", color: rendAnualUSD >= 0 ? "#4aaeff" : "#ff4455", lineHeight: 1 }}>
-                ${rendAnualUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                ${rendAnualUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
                 {rendAnualPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
@@ -1901,7 +1901,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       {d.year} {d.year === activeYear && <span style={{ fontSize: "8px", color: "#00ff88", marginLeft: "4px", background: "#00ff8815", padding: "2px 6px", borderRadius: "4px" }}>ACTIVO</span>}
                     </td>
                     <td style={{ padding: "12px 8px" }}>
-                      <span style={{ color: d.tradingUSD >= 0 ? "#fff" : "#ff4455", fontWeight: "600" }}>${d.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      <span style={{ color: d.tradingUSD >= 0 ? "#fff" : "#ff4455", fontWeight: "600" }}>${d.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.tradingPct.toFixed(2)}%</div>
                     </td>
                     
@@ -1913,7 +1913,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                             onClick={() => setEditUnrealized({ year: d.year, field: "usd", label: `${d.year} · UNREALIZED ($)`, value: d.unrealizedUSD })}
                             style={{ color: "#ffd700", fontWeight: "600", cursor: "pointer", borderBottom: "1px dashed #ffd70055", display: "inline-block" }}
                           >
-                            ${d.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            ${d.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
                           <div 
                             onClick={() => setEditUnrealized({ year: d.year, field: "pct", label: `${d.year} · UNREALIZED (%)`, value: d.unrealizedPct })}
@@ -1927,7 +1927,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     </td>
                     
                     <td style={{ padding: "12px 8px" }}>
-                      <span style={{ color: d.realizedUSD >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      <span style={{ color: d.realizedUSD >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                       <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.realizedPct.toFixed(2)}%</div>
                     </td>
                     <td style={{ padding: "12px 8px" }}>
@@ -1936,14 +1936,14 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                         const totalPct = d.unrealizedPct + d.realizedPct;
                         return (
                           <>
-                            <span style={{ color: total >= 0 ? "#4aaeff" : "#ff4455", fontWeight: "700" }}>${total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                            <span style={{ color: total >= 0 ? "#4aaeff" : "#ff4455", fontWeight: "700" }}>${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             <div style={{ fontSize: "9px", color: "#4aaeff88", marginTop: "2px" }}>{totalPct.toFixed(2)}%</div>
                           </>
                         );
                       })()}
                     </td>
                     <td style={{ padding: "12px 8px" }}>
-                      <span style={{ color: "#00e5ff", fontWeight: "700" }}>${d.portfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}</span>
+                      <span style={{ color: "#00e5ff", fontWeight: "700" }}>${d.portfolioValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </td>
                   </tr>
                 ))}
@@ -2194,7 +2194,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <span style={{ fontSize: "16px", color: "#fff", fontWeight: "600", letterSpacing: "0.5px" }}>{cat.name}</span>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "20px", fontWeight: "700", color: cat.color }}>${cat.valor.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: "20px", fontWeight: "700", color: cat.color }}>${cat.valor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "4px", fontWeight: "500" }}>{cat.pct}% del portafolio</div>
                   </div>
                 </div>
@@ -2255,7 +2255,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <span style={{ fontSize: "16px", color: "#fff", fontWeight: "600", letterSpacing: "0.5px" }}>{plazo.name}</span>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "20px", fontWeight: "700", color: plazo.color }}>${plazo.valor.toLocaleString("en-US", { minimumFractionDigits: 2 })}</div>
+                    <div style={{ fontSize: "20px", fontWeight: "700", color: plazo.color }}>${plazo.valor.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                     <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "4px", fontWeight: "500" }}>{plazo.pct}% del portafolio</div>
                   </div>
                 </div>
@@ -2558,7 +2558,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "14px", padding: "16px 20px" }}>
             <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#9e968f", marginBottom: "8px", fontWeight: "600" }}>VALOR INICIAL</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff", lineHeight: 1 }}>
-              ${safeValorInicial.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              ${safeValorInicial.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Capital base del período</div>
           </div>
@@ -2567,7 +2567,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ background: "#0c1318", border: "1px solid #00e5ff33", borderRadius: "14px", padding: "16px 20px", borderLeft: "3px solid #00e5ff" }}>
             <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#00e5ff", marginBottom: "8px", fontWeight: "600" }}>VALOR ACTUAL (LIVE)</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: "#00e5ff", lineHeight: 1 }}>
-              ${valorActual.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              ${valorActual.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div style={{ fontSize: "9px", color: "#00e5ff88", marginTop: "8px" }}>Portafolio total actual</div>
           </div>
@@ -2576,7 +2576,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ background: "#0c1318", border: `1px solid ${crecimientoTotal >= 0 ? "#00ff8833" : "#ff445533"}`, borderRadius: "14px", padding: "16px 20px", borderLeft: `3px solid ${crecimientoTotal >= 0 ? "#00ff88" : "#ff4455"}` }}>
             <div style={{ fontSize: "10px", letterSpacing: "1px", color: crecimientoTotal >= 0 ? "#00ff88" : "#ff4455", marginBottom: "8px", fontWeight: "600" }}>CRECIMIENTO TOTAL</div>
             <div style={{ fontSize: "22px", fontWeight: "700", color: crecimientoTotal >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
-              {crecimientoTotal >= 0 ? "+" : ""}${crecimientoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              {crecimientoTotal >= 0 ? "+" : ""}${crecimientoTotal.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "8px" }}>Diferencia $ del período</div>
           </div>
@@ -2615,7 +2615,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", padding: "14px 16px", borderRadius: "10px", minWidth: "210px" }}>
                         <div style={{ fontSize: "12px", fontWeight: "bold", color: "#00ff88", marginBottom: "8px", letterSpacing: "1px" }}>{label}</div>
                         <div style={{ fontSize: "14px", fontWeight: "bold", color: "#fff", marginBottom: "10px", borderBottom: "1px solid #1a2a2a", paddingBottom: "6px" }}>
-                          Portafolio: ${vp.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          Portafolio: ${vp.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", fontSize: "10px", marginBottom: "4px" }}>
                           <span style={{ color: "#9e968f" }}>Base:</span>
@@ -2774,7 +2774,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       </div>
                       <div style={{ borderTop: `1px solid ${color}22`, paddingTop: "8px", width: "100%" }}>
                         <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color }}>
-                          {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                          {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div style={{ fontSize: "9px", color: `${color}99`, marginTop: "3px" }}>{pctVal} del portafolio</div>
                       </div>
@@ -2797,7 +2797,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                   }}>
                     <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "2px", color: glTotalColor, fontWeight: "600" }}>TOTAL G/L</div>
                     <div style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
-                      {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div style={{ fontSize: "9px", color: `${glTotalColor}99` }}>{pct(d.totalGL || 0)} del portafolio</div>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -2833,7 +2833,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     </div>
                     <div style={{ borderTop: "1px solid #4aaeff22", paddingTop: "8px", width: "100%" }}>
                       <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color: "#4aaeff" }}>
-                        ${(d.depositos || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        ${(d.depositos || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div style={{ fontSize: "9px", color: "#4aaeff99", marginTop: "3px" }}>{pct(d.depositos || 0)} del portafolio</div>
                     </div>
@@ -2866,7 +2866,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     </div>
                     <div style={{ borderTop: "1px solid #00e5ff22", paddingTop: "8px", width: "100%" }}>
                       <div style={{ fontSize: isMobile ? "17px" : "22px", fontWeight: "700", color: "#00e5ff" }}>
-                        ${(d.valorFinal || 0).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                        ${(d.valorFinal || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div style={{ fontSize: "9px", color: "#00e5ff99", marginTop: "3px" }}>100% del portafolio</div>
                       <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "2px" }}>(TOTAL G/L + DEPÓSITOS)</div>
