@@ -2484,7 +2484,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         totalDiv += accDet.filter(d => d && d.tipo === "dividendo").reduce((s, d) => s + (d ? (d.monto || 0) : 0), 0);
       });
 
-      const totalGLYear = totalTr + totalVe + totalDiv;
+      const unrealizedVal = unrealized[yr]?.usd || 0;
+      const totalGLYear = totalTr + totalVe + totalDiv + unrealizedVal;
 
       // valorFinal for this year
       const valorFinal = (yr === activeYear)
