@@ -1758,15 +1758,23 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
       // Realized percentage: relative to yrPortfolioValue
       const realizedPct = yrPortfolioValue > 0 ? (totalRealizedGain / yrPortfolioValue) * 100 : 0;
+
+      // Trading % del portafolio — same denominator as realizedPct
+      const tradingPortPct = yrPortfolioValue > 0 ? (totalTradingGain / yrPortfolioValue) * 100 : 0;
+
+      // Unrealized % del portafolio — same denominator as realizedPct
+      const unrealizedPortPct = yrPortfolioValue > 0 ? (unrealizedUSD / yrPortfolioValue) * 100 : 0;
       
       return {
         year: yr,
         tradingUSD: parseFloat(totalTradingGain.toFixed(2)),
-        tradingPct: parseFloat(tradingPct.toFixed(2)),
+        tradingPct: parseFloat(tradingPct.toFixed(2)),         // avg monthly return % (capital base)
+        tradingPortPct: parseFloat(tradingPortPct.toFixed(2)), // % del portafolio total
         avgCapitalUSD: parseFloat(avgCapitalUSD.toFixed(2)),
         avgGainUSD: parseFloat(avgGainUSD.toFixed(2)),
         unrealizedUSD: parseFloat(unrealizedUSD.toFixed(2)),
-        unrealizedPct: parseFloat(unrealizedPct.toFixed(2)),
+        unrealizedPct: parseFloat(unrealizedPct.toFixed(2)),     // user-entered manual %
+        unrealizedPortPct: parseFloat(unrealizedPortPct.toFixed(2)), // % del portafolio total
         realizedUSD: parseFloat(totalRealizedGain.toFixed(2)),
         realizedPct: parseFloat(realizedPct.toFixed(2)),
         portfolioValue: parseFloat(yrPortfolioValue.toFixed(2))
@@ -1777,16 +1785,19 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       year: activeYear, 
       tradingUSD: 0, 
       tradingPct: 0, 
+      tradingPortPct: 0,
       avgCapitalUSD: 0,
       avgGainUSD: 0,
       unrealizedUSD: 0, 
-      unrealizedPct: 0, 
+      unrealizedPct: 0,
+      unrealizedPortPct: 0,
       realizedUSD: 0, 
       realizedPct: 0 
     };
 
     const rendAnualUSD = activeData.unrealizedUSD + activeData.realizedUSD;
-    const rendAnualPct = activeData.unrealizedPct + activeData.realizedPct;
+    // rendAnualPct: both components now use the same denominator (yrPortfolioValue)
+    const rendAnualPct = activeData.unrealizedPortPct + activeData.realizedPct;
 
     return (
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
@@ -1817,7 +1828,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                <span>{activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>prom.</span></span>
+                <span>{activeData.tradingPortPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span></span>
+                {activeData.tradingPct !== activeData.tradingPortPct && (
+                  <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
+                )}
+                {activeData.tradingPct !== activeData.tradingPortPct && (
+                  <span style={{ fontSize: "10px", color: "#aa88ff88" }}>
+                    {activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "9px", color: "#5e564f" }}>prom. cap.</span>
+                  </span>
+                )}
                 {activeData.avgCapitalUSD > 0 && (
                   <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
                 )}
@@ -1846,14 +1865,27 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               >
                 ${activeData.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <div style={{ marginTop: "8px" }}>
-                <span 
-                  onClick={() => setEditUnrealized({ year: activeData.year, field: "pct", label: `${activeData.year} · UNREALIZED (%)`, value: activeData.unrealizedPct })}
-                  style={{ fontSize: "13px", color: "#ffd700cc", fontWeight: "500", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
-                >
-                  {activeData.unrealizedPct.toFixed(2)}%
+              <div style={{ marginTop: "8px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
+                <span style={{ fontSize: "13px", color: "#ffd700cc", fontWeight: "500" }}>
+                  {activeData.unrealizedPortPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
                 </span>
-                <span style={{ fontSize: "11px", color: "#ffd70044", marginLeft: "6px" }}>✎</span>
+                {activeData.unrealizedPct > 0 && (
+                  <span style={{ fontSize: "11px", color: "#ffd70066" }}>·</span>
+                )}
+                {activeData.unrealizedPct > 0 && (
+                  <span
+                    onClick={() => setEditUnrealized({ year: activeData.year, field: "pct", label: `${activeData.year} · UNREALIZED (%)`, value: activeData.unrealizedPct })}
+                    style={{ fontSize: "11px", color: "#ffd700aa", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
+                  >
+                    {activeData.unrealizedPct.toFixed(2)}% <span style={{ fontSize: "9px", color: "#5e564f" }}>man.</span>
+                  </span>
+                )}
+                {activeData.unrealizedPct === 0 && (
+                  <span
+                    onClick={() => setEditUnrealized({ year: activeData.year, field: "pct", label: `${activeData.year} · UNREALIZED (%)`, value: activeData.unrealizedPct })}
+                    style={{ fontSize: "11px", color: "#ffd70044", cursor: "pointer" }}
+                  >✎</span>
+                )}
               </div>
             </div>
 
@@ -1902,7 +1934,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     </td>
                     <td style={{ padding: "12px 8px" }}>
                       <span style={{ color: d.tradingUSD >= 0 ? "#fff" : "#ff4455", fontWeight: "600" }}>${d.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.tradingPct.toFixed(2)}%</div>
+                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.tradingPortPct.toFixed(2)}%</div>
                     </td>
                     
                     {/* Unrealized Editable */}
@@ -1919,7 +1951,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                             onClick={() => setEditUnrealized({ year: d.year, field: "pct", label: `${d.year} · UNREALIZED (%)`, value: d.unrealizedPct })}
                             style={{ fontSize: "9px", color: "#ffd70099", marginTop: "2px", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
                           >
-                            {d.unrealizedPct.toFixed(2)}%
+                            {d.unrealizedPortPct.toFixed(2)}%
                           </div>
                         </div>
                         <span style={{ fontSize: "9px", color: "#ffd70044" }}>✎</span>
@@ -1933,7 +1965,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <td style={{ padding: "12px 8px" }}>
                       {(() => {
                         const total = d.unrealizedUSD + d.realizedUSD;
-                        const totalPct = d.unrealizedPct + d.realizedPct;
+                        const totalPct = d.unrealizedPortPct + d.realizedPct;
                         return (
                           <>
                             <span style={{ color: total >= 0 ? "#4aaeff" : "#ff4455", fontWeight: "700" }}>${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
