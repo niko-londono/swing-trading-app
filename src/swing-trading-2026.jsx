@@ -1807,12 +1807,12 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
               <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>◈ RESUMEN DE RENDIMIENTO ANUAL</div>
-              <div style={{ fontSize: "10px", color: "#9e968f" }}>Trading vs Unrealized (manual) vs Realized ({activeYear})</div>
+              <div style={{ fontSize: "10px", color: "#9e968f" }}>Unrealized (manual) vs Realized ({activeYear})</div>
             </div>
           </div>
 
           {/* Card Layout */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "16px", marginBottom: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "16px", marginBottom: "20px" }}>
             
             {/* CARD 1: AÑO */}
             <div style={{ background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "12px", padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
@@ -1821,42 +1821,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               <div style={{ fontSize: "9px", color: "#00ff8877", marginTop: "8px", letterSpacing: "0.5px" }}>AÑO ACTIVO</div>
             </div>
 
-            {/* CARD 2: TRADING */}
-            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
-              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>TRADING</div>
-              <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
-                ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                <span>{activeData.tradingPortPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span></span>
-                {activeData.tradingPct !== activeData.tradingPortPct && (
-                  <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
-                )}
-                {activeData.tradingPct !== activeData.tradingPortPct && (
-                  <span style={{ fontSize: "10px", color: "#aa88ff88" }}>
-                    {activeData.tradingPct.toFixed(2)}% <span style={{ fontSize: "9px", color: "#5e564f" }}>prom. cap.</span>
-                  </span>
-                )}
-                {activeData.avgCapitalUSD > 0 && (
-                  <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
-                )}
-                {activeData.avgCapitalUSD > 0 && (
-                  <span style={{ fontSize: "11px", color: "#aa88ffaa" }}>
-                    ${activeData.avgCapitalUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>cap prom.</span>
-                  </span>
-                )}
-                {activeData.avgGainUSD !== 0 && (
-                  <span style={{ fontSize: "11px", color: "#aa88ff66" }}>·</span>
-                )}
-                {activeData.avgGainUSD !== 0 && (
-                  <span style={{ fontSize: "11px", color: activeData.avgGainUSD >= 0 ? "#00ff88aa" : "#ff4455aa" }}>
-                    ${activeData.avgGainUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: "9px", color: "#5e564f" }}>gan. prom.</span>
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* CARD 3: UNREALIZED */}
+            {/* CARD 2: UNREALIZED */}
             <div style={{ background: "#080d0f", border: "1px solid #ffd70033", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #ffd700" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#ffd700", marginBottom: "8px", fontWeight: "600" }}>UNREALIZED (MANUAL)</div>
               <div 
@@ -1867,7 +1832,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               </div>
               <div style={{ marginTop: "8px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
                 <span style={{ fontSize: "13px", color: "#ffd700cc", fontWeight: "500" }}>
-                  {activeData.unrealizedPortPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
+                  {activeData.unrealizedPortPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>del portafolio</span>
                 </span>
                 {activeData.unrealizedPct > 0 && (
                   <span style={{ fontSize: "11px", color: "#ffd70066" }}>·</span>
@@ -1889,25 +1854,25 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               </div>
             </div>
 
-            {/* CARD 4: REALIZED */}
+            {/* CARD 3: REALIZED */}
             <div style={{ background: "#080d0f", border: "1px solid #00ff8833", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #00ff88" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#00ff88", marginBottom: "8px", fontWeight: "600" }}>REALIZED (TOTAL)</div>
               <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.realizedUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
                 ${activeData.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                {activeData.realizedPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
+                {activeData.realizedPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>del portafolio</span>
               </div>
             </div>
 
-            {/* CARD 5: REND. ANUAL */}
+            {/* CARD 4: REND. ANUAL */}
             <div style={{ background: "#080d0f", border: "1px solid #4aaeff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #4aaeff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#4aaeff", marginBottom: "8px", fontWeight: "600" }}>REND. ANUAL</div>
               <div style={{ fontSize: "22px", fontWeight: "700", color: rendAnualUSD >= 0 ? "#4aaeff" : "#ff4455", lineHeight: 1 }}>
                 ${rendAnualUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                {rendAnualPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>port.</span>
+                {rendAnualPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>del portafolio</span>
               </div>
             </div>
 
@@ -1981,6 +1946,83 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        {/* ── MÉTRICAS Y RENDIMIENTO DE TRADING ── */}
+        <div style={{ background: "#0c1318", border: "1px solid #aa88ff22", borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+            <div>
+              <div style={{ fontSize: isMobile ? "8px" : "11px", letterSpacing: "3px", color: "#aa88ff", marginBottom: "4px" }}>◈ MÉTRICAS Y RENDIMIENTO DE TRADING</div>
+              <div style={{ fontSize: "10px", color: "#9e968f" }}>Estadísticas detalladas de operaciones de trading ({activeYear})</div>
+            </div>
+          </div>
+
+          {/* Trading Cards Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "16px" }}>
+            
+            {/* CARD 1: GANANCIA TOTAL TRADING */}
+            <div style={{ 
+              background: "#080d0f", 
+              border: "1px solid #aa88ff33", 
+              borderRadius: "12px", 
+              padding: "16px 20px", 
+              borderLeft: "3px solid #aa88ff",
+              gridColumn: isMobile ? "span 2" : "span 1"
+            }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA TOTAL TRADING</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
+                ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                G/L acumulado en {activeData.year}
+              </div>
+            </div>
+
+            {/* CARD 2: % DEL PORTAFOLIO */}
+            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>% DEL PORTAFOLIO</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: "#aa88ff", lineHeight: 1 }}>
+                {activeData.tradingPortPct.toFixed(2)}%
+              </div>
+              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                del portafolio
+              </div>
+            </div>
+
+            {/* CARD 3: GANANCIA PROMEDIO MENSUAL % */}
+            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA PROM. MENSUAL %</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: activeData.tradingPct >= 0 ? "#aa88ff" : "#ff4455", lineHeight: 1 }}>
+                {activeData.tradingPct.toFixed(2)}%
+              </div>
+              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                ganancia promedio mensual %
+              </div>
+            </div>
+
+            {/* CARD 4: GANANCIA PROMEDIO MENSUAL $ */}
+            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA PROM. MENSUAL $</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: activeData.avgGainUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
+                ${activeData.avgGainUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                ganancia promedio mensual $
+              </div>
+            </div>
+
+            {/* CARD 5: CAPITAL UTILIZADO PROMEDIO MENSUAL */}
+            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
+              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>CAPITAL UTILIZADO PROM.</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: "#fff", lineHeight: 1 }}>
+                ${activeData.avgCapitalUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                capital utilizado promedio mensual
+              </div>
+            </div>
+
           </div>
         </div>
 
