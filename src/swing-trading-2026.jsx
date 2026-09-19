@@ -1365,7 +1365,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
         </div>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "10px", marginBottom: "12px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "10px", marginBottom: "12px" }}>
         {[
           { label: "FALTANTE", value: `$${faltante.toFixed(2)}`, color: "#ffd700", sub: "para meta" },
           { 
@@ -1375,11 +1375,23 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             color: "#4af", 
             sub: capitalPromRealized > 0 ? `${promedioPct.toFixed(2)}% · actual` : "actual" 
           },
+          { 
+            label: "PROMEDIO/MES CAPITAL UTILIZADO", 
+            value: `$${capitalPromRealized.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
+            color: "#00e5ff", 
+            sub: "base operaciones" 
+          },
           { label: "NECESARIO/MES", value: `$${necesario.toFixed(2)}`, color: "#ff8c00", sub: `${mesesRest} meses rest.` },
           { label: "MESES ACTIVOS", value: `${mesesAct}/12`, color: "#aa88ff", sub: "registrados" },
-        ].map(({ label, value, pct, color, sub }) => (
-          <div key={label} style={{ background: "#0c1318", borderRadius: "14px", padding: "14px", borderLeft: `3px solid ${color}` }}>
-            <div style={{ fontSize: isMobile ? "7px" : "9px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "6px" }}>{label}</div>
+        ].map(({ label, value, pct, color, sub }, idx) => (
+          <div key={label} style={{ 
+            background: "#0c1318", 
+            borderRadius: "14px", 
+            padding: "14px", 
+            borderLeft: `3px solid ${color}`,
+            gridColumn: (isMobile && idx === 4) ? "span 2" : undefined 
+          }}>
+            <div style={{ fontSize: isMobile ? "7px" : "9px", letterSpacing: "1.5px", color: "#c9c0b4", marginBottom: "6px", lineHeight: 1.3 }}>{label}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
               <span style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color, lineHeight: 1 }}>{value}</span>
               {pct && (
