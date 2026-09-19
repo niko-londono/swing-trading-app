@@ -904,14 +904,28 @@ export default function App() {
     const t = td.length > 0 ? td.reduce((s, d) => s + d.ganancia, 0) : (row.trading === "" ? null : +row.trading);
     // Capital: use detail sum if entries exist, else manual field
     const c = td.length > 0 ? td.reduce((s, d) => s + d.capital, 0) : (row.capital === "" ? null : +row.capital);
+
+    // Acciones ventas: ganancia y capital utilizado
+    const ventas = (row.accionesDetail || []).filter(d => d.tipo === "venta");
+    const ventasGain = ventas.reduce((s, d) => s + (d.monto || 0), 0);
+    const ventasCap = ventas.reduce((s, d) => s + ((d.sharesVendidas && d.precioCompra) ? (d.sharesVendidas * d.precioCompra) : (d.capital || 0)), 0);
+
     // Acciones: exclude compra from G/L
     const a = (row.accionesDetail || []).filter(d => d.tipo !== "compra").reduce((s, d) => s + (d.monto || 0), 0);
     const hasAcc = (row.accionesDetail || []).filter(d => d.tipo !== "compra").length > 0;
     const margin = row.margin === "" || row.margin === undefined ? 0 : parseFloat(row.margin);
     const hasActivity = t !== null || hasAcc || margin > 0;
     const total = hasActivity ? (t ?? 0) + a - margin : null;
-    const rendPct = (t !== null && c && c > 0) ? (t / c) * 100 : null;
-    return { ...row, total, rendPct, t, a, c, td, margin };
+
+    // Rendimiento % mensual combinado (Trading + Acciones Vendidas)
+    const tradingGain = t !== null ? t : 0;
+    const tradingCap = (c !== null && c > 0) ? c : 0;
+    const combinedGain = tradingGain + ventasGain;
+    const combinedCap = tradingCap + ventasCap;
+    const hasTradingOrVentas = (t !== null && tradingCap > 0) || (ventas.length > 0 && ventasCap > 0);
+    const rendPct = (combinedCap > 0 && hasTradingOrVentas) ? (combinedGain / combinedCap) * 100 : null;
+
+    return { ...row, total, rendPct, t, a, c, td, margin, ventasGain, ventasCap };
   });
 
   const ytd = computed.reduce((s, r) => r.total !== null ? s + r.total : s, 0);
@@ -1350,15 +1364,15 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
   const HomeScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
       <div style={{ background: "linear-gradient(135deg,#0a1f12,#071a1a)", border: "1px solid #00ff8820", borderRadius: "18px", padding: "20px", marginBottom: "12px" }}>
-        <div style={{ fontSize: isMobile ? "9px" : "11px", letterSpacing: "3px", color: "#00ff8877", marginBottom: "4px" }}>RENDIMIENTO YTD {activeYear}</div>
+        <div style={{ fontSize: isMobile ? "9px" : "13px", letterSpacing: "3px", color: "#00ff8877", marginBottom: "4px" }}>RENDIMIENTO YTD {activeYear}</div>
         <div style={{ fontSize: isMobile ? "40px" : "52px", fontWeight: "700", color: "#00ff88", lineHeight: 1, letterSpacing: "-1px" }}>${ytd.toFixed(2)}</div>
-        <div style={{ fontSize: isMobile ? "10px" : "13px", color: "#d4ccbf", marginTop: "4px" }}>
-          de{" "}<span onClick={() => setEditGoal(true)} style={{ color: "#ffd700", borderBottom: "1px dashed #ffd70066", cursor: "pointer" }}>${goal}</span>{" "}meta anual <span style={{ color: "#ffd70055", fontSize: isMobile ? "8px" : "10px" }}>✎</span>
+        <div style={{ fontSize: isMobile ? "10px" : "14px", color: "#d4ccbf", marginTop: "6px" }}>
+          de{" "}<span onClick={() => setEditGoal(true)} style={{ color: "#ffd700", borderBottom: "1px dashed #ffd70066", cursor: "pointer" }}>${goal}</span>{" "}meta anual <span style={{ color: "#ffd70055", fontSize: isMobile ? "8px" : "11px" }}>✎</span>
         </div>
         <div style={{ marginTop: "18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-            <span style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "1px", color: "#c9c0b4" }}>PROGRESO META</span>
-            <span style={{ fontSize: isMobile ? "9px" : "11px", color: "#00ff88" }}>{progress.toFixed(1)}%</span>
+            <span style={{ fontSize: isMobile ? "8px" : "12px", letterSpacing: "1px", color: "#c9c0b4" }}>PROGRESO META</span>
+            <span style={{ fontSize: isMobile ? "9px" : "13px", color: "#00ff88", fontWeight: "600" }}>{progress.toFixed(1)}%</span>
           </div>
           <div style={{ background: "#0a1a0a", borderRadius: "6px", height: "8px", overflow: "hidden" }}>
             <div style={{ width: `${progress}%`, height: "100%", background: "linear-gradient(90deg,#003d22,#00ff88)", borderRadius: "6px", boxShadow: "0 0 10px #00ff8866" }} />
@@ -1387,11 +1401,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           <div key={label} style={{ 
             background: "#0c1318", 
             borderRadius: "14px", 
-            padding: "14px", 
+            padding: "16px 14px", 
             borderLeft: `3px solid ${color}`,
             gridColumn: (isMobile && idx === 4) ? "span 2" : undefined 
           }}>
-            <div style={{ fontSize: isMobile ? "7px" : "9px", letterSpacing: "1.5px", color: "#c9c0b4", marginBottom: "6px", lineHeight: 1.3 }}>{label}</div>
+            <div style={{ fontSize: isMobile ? "7px" : "11px", letterSpacing: "1.5px", color: "#c9c0b4", marginBottom: "8px", lineHeight: 1.3, fontWeight: "600" }}>{label}</div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
               <span style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color, lineHeight: 1 }}>{value}</span>
               {pct && (
@@ -1408,12 +1422,12 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 </span>
               )}
             </div>
-            <div style={{ fontSize: isMobile ? "9px" : "11px", color: "#c9c0b4", marginTop: "4px" }}>{sub}</div>
+            <div style={{ fontSize: isMobile ? "9px" : "13px", color: "#c9c0b4", marginTop: "6px", fontWeight: "500" }}>{sub}</div>
           </div>
         ))}
       </div>
       <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px", marginBottom: "12px" }}>
-        <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>ACUMULADO {activeYear} vs META</div>
+        <div style={{ fontSize: isMobile ? "8px" : "12px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px", fontWeight: "600" }}>ACUMULADO {activeYear} vs META</div>
         <ResponsiveContainer width="100%" height={isMobile ? 110 : 150}>
           <AreaChart data={chartData} margin={{ top: 4, right: 4, left: isMobile ? -28 : -10, bottom: 0 }}>
             <defs>
@@ -1422,8 +1436,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                 <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <XAxis dataKey="m" tick={{ fontSize: isMobile ? 7 : 10, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: isMobile ? 7 : 10, fill: "#9e968f" }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="m" tick={{ fontSize: isMobile ? 7 : 11, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: isMobile ? 7 : 11, fill: "#9e968f" }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #00ff8833", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`, "Acum."]} />
             <ReferenceLine y={goal} stroke="#ffd70055" strokeDasharray="3 3" />
             <Area type="monotone" dataKey="acum" stroke="#00ff88" strokeWidth={2} fill="url(#g1)" dot={false} />
@@ -1431,7 +1445,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         </ResponsiveContainer>
       </div>
       <div style={{ background: "#0c1318", border: "1px solid #1a2a2a", borderRadius: "16px", padding: "16px" }}>
-        <div style={{ fontSize: isMobile ? "8px" : "10px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px" }}>REND. % POR MES</div>
+        <div style={{ fontSize: isMobile ? "8px" : "12px", letterSpacing: "3px", color: "#c9c0b4", marginBottom: "10px", fontWeight: "600" }}>REND. % POR MES</div>
         <div style={{ display: "flex", gap: "4px", alignItems: "flex-end", height: isMobile ? "55px" : "70px" }}>
           {computed.map((r, i) => {
             const h = r.rendPct !== null ? Math.min(isMobile ? 45 : 58, Math.max(4, (Math.abs(r.rendPct) / 12) * (isMobile ? 45 : 58))) : 3;
@@ -1439,7 +1453,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             return (
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "3px" }}>
                 <div style={{ width: "100%", height: `${h}px`, background: col, borderRadius: "3px 3px 0 0", opacity: r.rendPct !== null ? 0.85 : 0.15 }} />
-                <div style={{ fontSize: isMobile ? "6px" : "8px", color: "#c9c0b4" }}>{MONTHS_SHORT[i]}</div>
+                <div style={{ fontSize: isMobile ? "6px" : "10px", color: "#c9c0b4", fontWeight: "600" }}>{MONTHS_SHORT[i]}</div>
               </div>
             );
           })}
@@ -1450,7 +1464,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
   const TablaScreen = () => (
     <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
-      <div style={{ fontSize: "9px", color: "#c9c0b4", letterSpacing: "1px", marginBottom: "12px", textAlign: "center" }}>✎ Toca un mes para expandir y editar</div>
+      <div style={{ fontSize: isMobile ? "9px" : "13px", color: "#c9c0b4", letterSpacing: "1px", marginBottom: "14px", textAlign: "center" }}>✎ Toca un mes para expandir y editar</div>
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: "10px" }}>
         {computed.map((row, i) => {
           const isOpen = expanded === i;
@@ -1463,17 +1477,17 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <div onClick={() => setExpanded(isOpen ? null : i)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", cursor: "pointer" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: hasData ? col : "#223", boxShadow: hasData ? `0 0 6px ${col}` : "none" }} />
-                <span style={{ fontSize: "12px", letterSpacing: "1px", color: hasData ? "#c0c8cc" : "#9e968f" }}>{MONTHS[i]}</span>
+                <span style={{ fontSize: isMobile ? "12px" : "14px", letterSpacing: "1px", color: hasData ? "#c0c8cc" : "#9e968f", fontWeight: "600" }}>{MONTHS[i]}</span>
                 {(tds.length > 0 || txs.filter(t => t.tipo !== "compra").length > 0) && (
-                  <span style={{ fontSize: "7px", color: "#ffd70099", letterSpacing: "1px" }}>
+                  <span style={{ fontSize: isMobile ? "7px" : "11px", color: "#ffd70099", letterSpacing: "1px", background: "#ffd70014", padding: "2px 6px", borderRadius: "4px" }}>
                     {tds.length > 0 ? `${tds.length}t ` : ""}{txs.filter(t => t.tipo !== "compra").length > 0 ? `${txs.filter(t => t.tipo !== "compra").length}a` : ""}
                   </span>
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: hasData ? col : "#9e968f" }}>{hasData ? fpct(row.rendPct) : "—"}</span>
-                <span style={{ fontSize: "12px", color: hasData ? "#c9c0b4" : "#9e968f" }}>{hasData ? fmt(row.total) : "—"}</span>
-                <span style={{ fontSize: "9px", color: "#c9c0b4" }}>{isOpen ? "▲" : "▼"}</span>
+                <span style={{ fontSize: isMobile ? "14px" : "16px", fontWeight: "700", color: hasData ? col : "#9e968f" }}>{hasData ? fpct(row.rendPct) : "—"}</span>
+                <span style={{ fontSize: isMobile ? "12px" : "14px", color: hasData ? "#c9c0b4" : "#9e968f", fontWeight: "600" }}>{hasData ? fmt(row.total) : "—"}</span>
+                <span style={{ fontSize: isMobile ? "9px" : "12px", color: "#c9c0b4" }}>{isOpen ? "▲" : "▼"}</span>
               </div>
             </div>
 
@@ -1594,12 +1608,12 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       </div>
       <div style={{ background: "#071a10", border: "1px solid #00ff8833", borderRadius: "14px", padding: "16px", marginTop: "4px", display: "flex", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>TOTAL REALIZADO</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#00ff88" }}>${ytd.toFixed(2)}</div>
+          <div style={{ fontSize: isMobile ? "7px" : "12px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px", fontWeight: "600" }}>TOTAL REALIZADO</div>
+          <div style={{ fontSize: isMobile ? "22px" : "26px", fontWeight: "700", color: "#00ff88" }}>${ytd.toFixed(2)}</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px" }}>FALTANTE</div>
-          <div style={{ fontSize: "20px", fontWeight: "700", color: "#ffd700" }}>${faltante.toFixed(2)}</div>
+          <div style={{ fontSize: isMobile ? "7px" : "12px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "4px", fontWeight: "600" }}>FALTANTE</div>
+          <div style={{ fontSize: isMobile ? "20px" : "24px", fontWeight: "700", color: "#ffd700" }}>${faltante.toFixed(2)}</div>
         </div>
       </div>
     </div>
