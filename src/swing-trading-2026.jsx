@@ -922,6 +922,32 @@ export default function App() {
   const mesesRest = 12 - mesesAct;
   const necesario = mesesRest > 0 ? faltante / mesesRest : 0;
 
+  // ── 1. Capital utilizado promedio en ventas de acciones (año activo) ──
+  const allVentasAcciones = data.flatMap(r => r.accionesDetail || []).filter(tx => tx && tx.tipo === "venta");
+  const capitalVentasList = allVentasAcciones
+    .map(tx => (tx.sharesVendidas && tx.precioCompra) ? (tx.sharesVendidas * tx.precioCompra) : (tx.capital || 0))
+    .filter(c => c > 0);
+  const capitalPromVentasAcciones = capitalVentasList.length > 0
+    ? capitalVentasList.reduce((s, c) => s + c, 0) / capitalVentasList.length
+    : 0;
+
+  // ── 2. Capital utilizado promedio de trading (año activo) ───────────
+  const tradingMonthlyCapitals = computed
+    .filter(r => r.t !== null && r.c !== null && r.c > 0)
+    .map(r => r.c);
+  const capitalPromTrading = tradingMonthlyCapitals.length > 0
+    ? tradingMonthlyCapitals.reduce((s, c) => s + c, 0) / tradingMonthlyCapitals.length
+    : 0;
+
+  // ── 3. Capital promedio del rendimiento YTD Realized ─────────────────
+  const activeSourcesCount = (capitalPromVentasAcciones > 0 ? 1 : 0) + (capitalPromTrading > 0 ? 1 : 0);
+  const capitalPromRealized = activeSourcesCount > 0
+    ? (capitalPromVentasAcciones + capitalPromTrading) / activeSourcesCount
+    : 0;
+
+  // ── 4. % promedio mensual sobre capital utilizado ────────────────────
+  const promedioPct = capitalPromRealized > 0 ? (promedio / capitalPromRealized) * 100 : 0;
+
   const chartData = computed.map((r, i) => ({ m: MONTHS_SHORT[i], acum: computed.slice(0, i + 1).reduce((s, x) => s + (x.total ?? 0), 0) }));
 
   // ── Portfolio ─────────────────────────────────────────────────────
@@ -1342,13 +1368,34 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: "10px", marginBottom: "12px" }}>
         {[
           { label: "FALTANTE", value: `$${faltante.toFixed(2)}`, color: "#ffd700", sub: "para meta" },
-          { label: "PROMEDIO/MES", value: `$${promedio.toFixed(2)}`, color: "#4af", sub: "actual" },
+          { 
+            label: "PROMEDIO/MES", 
+            value: `$${promedio.toFixed(2)}`, 
+            pct: capitalPromRealized > 0 ? `${promedioPct.toFixed(2)}%` : null,
+            color: "#4af", 
+            sub: capitalPromRealized > 0 ? `${promedioPct.toFixed(2)}% · actual` : "actual" 
+          },
           { label: "NECESARIO/MES", value: `$${necesario.toFixed(2)}`, color: "#ff8c00", sub: `${mesesRest} meses rest.` },
           { label: "MESES ACTIVOS", value: `${mesesAct}/12`, color: "#aa88ff", sub: "registrados" },
-        ].map(({ label, value, color, sub }) => (
+        ].map(({ label, value, pct, color, sub }) => (
           <div key={label} style={{ background: "#0c1318", borderRadius: "14px", padding: "14px", borderLeft: `3px solid ${color}` }}>
             <div style={{ fontSize: isMobile ? "7px" : "9px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "6px" }}>{label}</div>
-            <div style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color, lineHeight: 1 }}>{value}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: isMobile ? "18px" : "22px", fontWeight: "700", color, lineHeight: 1 }}>{value}</span>
+              {pct && (
+                <span style={{ 
+                  fontSize: isMobile ? "11px" : "13px", 
+                  fontWeight: "700", 
+                  color: promedioPct >= 0 ? "#00ff88" : "#ff4455",
+                  background: promedioPct >= 0 ? "#00ff8818" : "#ff445518",
+                  padding: "2px 6px",
+                  borderRadius: "6px",
+                  lineHeight: 1
+                }}>
+                  {promedioPct >= 0 ? "+" : ""}{pct}
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: isMobile ? "9px" : "11px", color: "#c9c0b4", marginTop: "4px" }}>{sub}</div>
           </div>
         ))}
@@ -1732,9 +1779,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         ? monthlyPcts.reduce((s, p) => s + p, 0) / monthlyPcts.length
         : 0;
 
-      const avgCapitalUSD = monthlyCapitals.length > 0
-        ? monthlyCapitals.reduce((s, c) => s + c, 0) / monthlyCapitals.length
-        : 0;
+      const avgCapitalUSD = (yr === activeYear && capitalPromTrading > 0)
+        ? capitalPromTrading
+        : (monthlyCapitals.length > 0
+            ? monthlyCapitals.reduce((s, c) => s + c, 0) / monthlyCapitals.length
+            : 0);
 
       // Average monthly trading gain
       const monthlyGains = [];
