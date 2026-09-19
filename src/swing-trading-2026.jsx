@@ -928,14 +928,6 @@ export default function App() {
     return { ...row, total, rendPct, t, a, c, td, margin, ventasGain, ventasCap };
   });
 
-  const ytd = computed.reduce((s, r) => r.total !== null ? s + r.total : s, 0);
-  const faltante = Math.max(0, goal - ytd);
-  const progress = Math.min(100, (ytd / goal) * 100);
-  const mesesAct = computed.filter(r => r.total !== null).length;
-  const promedio = mesesAct > 0 ? ytd / mesesAct : 0;
-  const mesesRest = 12 - mesesAct;
-  const necesario = mesesRest > 0 ? faltante / mesesRest : 0;
-
   // ── 1. Capital utilizado promedio en ventas de acciones (año activo) ──
   const allVentasAcciones = data.flatMap(r => r.accionesDetail || []).filter(tx => tx && tx.tipo === "venta");
   const capitalVentasList = allVentasAcciones
@@ -959,8 +951,20 @@ export default function App() {
     ? (capitalPromVentasAcciones + capitalPromTrading) / activeSourcesCount
     : 0;
 
-  // ── 4. % promedio mensual sobre capital utilizado ────────────────────
+  // ── 4. Métricas YTD, Promedios y Meta (10% mensual sobre Capital Utilizado) ──
+  const ytd = computed.reduce((s, r) => r.total !== null ? s + r.total : s, 0);
+  const mesesAct = computed.filter(r => r.total !== null).length;
+  const promedio = mesesAct > 0 ? ytd / mesesAct : 0;
+  const mesesRest = 12 - mesesAct;
   const promedioPct = capitalPromRealized > 0 ? (promedio / capitalPromRealized) * 100 : 0;
+
+  // Meta: 10% mensual del capital utilizado promedio (meta anual = meta mensual * 12 meses)
+  const metaMensual = capitalPromRealized > 0 ? (capitalPromRealized * 0.10) : (goal / 12);
+  const metaAnual = capitalPromRealized > 0 ? (metaMensual * 12) : goal;
+  const faltante = Math.max(0, metaAnual - ytd);
+  const progress = metaAnual > 0 ? Math.min(100, Math.max(0, (ytd / metaAnual) * 100)) : 0;
+  const necesario = mesesRest > 0 ? faltante / mesesRest : 0;
+  const necesarioPct = capitalPromRealized > 0 ? (necesario / capitalPromRealized) * 100 : 0;
 
   const chartData = computed.map((r, i) => ({ m: MONTHS_SHORT[i], acum: computed.slice(0, i + 1).reduce((s, x) => s + (x.total ?? 0), 0) }));
 
@@ -1239,7 +1243,7 @@ export default function App() {
     setAiLoading(true); setAiText("");
     const resumen = computed.map((r, i) => ({ mes: MONTHS[i], total: r.total, pct: r.rendPct, capital: r.c })).filter(r => r.total !== null);
     const prompt = `Eres un gestor de portafolio experto en swing trading. Datos ${activeYear}:
-YTD: $${ytd.toFixed(2)} | Meta: $${goal} | Faltante: $${faltante.toFixed(2)} | Promedio/mes: $${promedio.toFixed(2)} | Necesario/mes: $${necesario.toFixed(2)}
+YTD: $${ytd.toFixed(2)} | Meta Anual: $${metaAnual.toFixed(2)} (Meta mensual: 10% = $${metaMensual.toFixed(2)}/mes) | Faltante: $${faltante.toFixed(2)} | Promedio/mes: $${promedio.toFixed(2)} (${promedioPct.toFixed(2)}%) | Cap. Utilizado Promedio: $${capitalPromRealized.toFixed(2)} | Necesario/mes: $${necesario.toFixed(2)}
 ${resumen.map(r => `${r.mes}: $${r.total?.toFixed(2)} (${r.pct?.toFixed(2)}%) cap $${r.capital}`).join(" | ")}
 Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
     try {
@@ -1248,7 +1252,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       setAiText(json.content?.map(b => b.text || "").join("") || "Sin respuesta.");
     } catch { setAiText("⚠️ Error de conexión."); }
     setAiLoading(false);
-  }, [computed, ytd, faltante, promedio, necesario, activeYear, goal]);
+  }, [computed, ytd, faltante, promedio, necesario, activeYear, metaAnual, metaMensual, capitalPromRealized, promedioPct]);
 
   const NAV = [
     { id: "home", icon: "◈", label: "INICIO" },
@@ -1367,12 +1371,27 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         <div style={{ fontSize: isMobile ? "9px" : "13px", letterSpacing: "3px", color: "#00ff8877", marginBottom: "4px" }}>RENDIMIENTO YTD {activeYear}</div>
         <div style={{ fontSize: isMobile ? "40px" : "52px", fontWeight: "700", color: "#00ff88", lineHeight: 1, letterSpacing: "-1px" }}>${ytd.toFixed(2)}</div>
         <div style={{ fontSize: isMobile ? "10px" : "14px", color: "#d4ccbf", marginTop: "6px" }}>
-          de{" "}<span onClick={() => setEditGoal(true)} style={{ color: "#ffd700", borderBottom: "1px dashed #ffd70066", cursor: "pointer" }}>${goal}</span>{" "}meta anual <span style={{ color: "#ffd70055", fontSize: isMobile ? "8px" : "11px" }}>✎</span>
+          de{" "}
+          {capitalPromRealized > 0 ? (
+            <span style={{ color: "#ffd700", fontWeight: "700" }}>${metaAnual.toFixed(2)}</span>
+          ) : (
+            <span onClick={() => setEditGoal(true)} style={{ color: "#ffd700", borderBottom: "1px dashed #ffd70066", cursor: "pointer" }}>${goal}</span>
+          )}{" "}
+          meta anual{" "}
+          {capitalPromRealized > 0 ? (
+            <span style={{ color: "#8b949e", fontSize: isMobile ? "9px" : "12px", marginLeft: "4px" }}>
+              (10% mensual · ${metaMensual.toFixed(2)}/mes)
+            </span>
+          ) : (
+            <span onClick={() => setEditGoal(true)} style={{ color: "#ffd70055", fontSize: isMobile ? "8px" : "11px", cursor: "pointer", marginLeft: "4px" }}>✎</span>
+          )}
         </div>
         <div style={{ marginTop: "18px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-            <span style={{ fontSize: isMobile ? "8px" : "12px", letterSpacing: "1px", color: "#c9c0b4" }}>PROGRESO META</span>
-            <span style={{ fontSize: isMobile ? "9px" : "13px", color: "#00ff88", fontWeight: "600" }}>{progress.toFixed(1)}%</span>
+            <span style={{ fontSize: isMobile ? "8px" : "12px", letterSpacing: "1px", color: "#c9c0b4" }}>PROGRESO META ANUAL</span>
+            <span style={{ fontSize: isMobile ? "9px" : "13px", color: "#00ff88", fontWeight: "600" }}>
+              {progress.toFixed(1)}% {capitalPromRealized > 0 && <span style={{ color: "#8b949e", fontWeight: "500", fontSize: isMobile ? "8px" : "11px" }}>({promedioPct.toFixed(2)}% de 10% mensual)</span>}
+            </span>
           </div>
           <div style={{ background: "#0a1a0a", borderRadius: "6px", height: "8px", overflow: "hidden" }}>
             <div style={{ width: `${progress}%`, height: "100%", background: "linear-gradient(90deg,#003d22,#00ff88)", borderRadius: "6px", boxShadow: "0 0 10px #00ff8866" }} />
@@ -1381,21 +1400,28 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       </div>
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "10px", marginBottom: "12px" }}>
         {[
-          { label: "FALTANTE", value: `$${faltante.toFixed(2)}`, color: "#ffd700", sub: "para meta" },
+          { label: "FALTANTE", value: `$${faltante.toFixed(2)}`, color: "#ffd700", sub: "para meta anual" },
           { 
             label: "PROMEDIO/MES", 
             value: `$${promedio.toFixed(2)}`, 
             pct: capitalPromRealized > 0 ? `${promedioPct.toFixed(2)}%` : null,
             color: "#4af", 
-            sub: capitalPromRealized > 0 ? `${promedioPct.toFixed(2)}% · actual` : "actual" 
+            sub: capitalPromRealized > 0 ? `meta: 10% ($${metaMensual.toFixed(2)}/m)` : "actual" 
           },
           { 
             label: "PROMEDIO/MES CAPITAL UTILIZADO", 
             value: `$${capitalPromRealized.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 
             color: "#00e5ff", 
-            sub: "base operaciones" 
+            sub: "base cálculo meta (10%/m)" 
           },
-          { label: "NECESARIO/MES", value: `$${necesario.toFixed(2)}`, color: "#ff8c00", sub: `${mesesRest} meses rest.` },
+          { 
+            label: "NECESARIO/MES", 
+            value: `$${necesario.toFixed(2)}`, 
+            color: "#ff8c00", 
+            sub: mesesRest > 0 
+              ? `${mesesRest} meses rest.${capitalPromRealized > 0 ? ` (${necesarioPct.toFixed(1)}%/m)` : ""}` 
+              : "año completado" 
+          },
           { label: "MESES ACTIVOS", value: `${mesesAct}/12`, color: "#aa88ff", sub: "registrados" },
         ].map(({ label, value, pct, color, sub }, idx) => (
           <div key={label} style={{ 
@@ -1439,7 +1465,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <XAxis dataKey="m" tick={{ fontSize: isMobile ? 7 : 11, fill: "#c9c0b4" }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: isMobile ? 7 : 11, fill: "#9e968f" }} axisLine={false} tickLine={false} />
             <Tooltip contentStyle={{ background: "#0c1318", border: "1px solid #00ff8833", borderRadius: "8px", fontSize: "11px" }} itemStyle={{ color: "#d4ccbf" }} labelStyle={{ color: "#00ff88" }} formatter={v => [`$${v.toFixed(2)}`, "Acum."]} />
-            <ReferenceLine y={goal} stroke="#ffd70055" strokeDasharray="3 3" />
+            <ReferenceLine y={metaAnual} stroke="#ffd70055" strokeDasharray="3 3" />
             <Area type="monotone" dataKey="acum" stroke="#00ff88" strokeWidth={2} fill="url(#g1)" dot={false} />
           </AreaChart>
         </ResponsiveContainer>
