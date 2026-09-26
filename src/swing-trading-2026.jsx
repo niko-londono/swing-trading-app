@@ -182,6 +182,32 @@ const inputSt = { width: "100%", background: "#0a1818", border: "1px solid #1a2a
 const labelSt = { fontSize: "8px", letterSpacing: "2px", color: "#c9c0b4", marginBottom: "6px" };
 const selectSt = { ...inputSt, fontSize: "13px", appearance: "none", cursor: "pointer" };
 
+const PctBadge = ({ val, fontSize, isMobile = false, style = {} }) => {
+  if (val === null || val === undefined || val === "—") return null;
+  const num = typeof val === "number" ? val : parseFloat(String(val).replace("%", ""));
+  if (isNaN(num)) return null;
+  const isPos = num >= 0;
+  const color = isPos ? "#00ff88" : "#ff4455";
+  const bg = isPos ? "#00ff8818" : "#ff445518";
+  const size = fontSize || (isMobile ? "11px" : "13px");
+  return (
+    <span style={{
+      fontSize: size,
+      fontWeight: "700",
+      color,
+      background: bg,
+      padding: "2px 6px",
+      borderRadius: "6px",
+      lineHeight: 1,
+      display: "inline-block",
+      letterSpacing: "0.2px",
+      ...style
+    }}>
+      {isPos ? "+" : ""}{num.toFixed(2)}%
+    </span>
+  );
+};
+
 // ══════════════════════════════ MODALS ════════════════════════════════
 
 function InputModal({ label, value, onSave, onClose }) {
@@ -1925,26 +1951,27 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             {/* CARD 2: UNREALIZED */}
             <div style={{ background: "#080d0f", border: "1px solid #ffd70033", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #ffd700" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#ffd700", marginBottom: "8px", fontWeight: "600" }}>UNREALIZED (MANUAL)</div>
-              <div 
-                onClick={() => setEditUnrealized({ year: activeData.year, field: "usd", label: `${activeData.year} · UNREALIZED ($)`, value: activeData.unrealizedUSD })}
-                style={{ fontSize: "22px", fontWeight: "700", color: "#ffd700", lineHeight: 1, cursor: "pointer", borderBottom: "1px dashed #ffd70055", display: "inline-block" }}
-              >
-                ${activeData.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+                <div 
+                  onClick={() => setEditUnrealized({ year: activeData.year, field: "usd", label: `${activeData.year} · UNREALIZED ($)`, value: activeData.unrealizedUSD })}
+                  style={{ fontSize: "22px", fontWeight: "700", color: "#ffd700", lineHeight: 1, cursor: "pointer", borderBottom: "1px dashed #ffd70055", display: "inline-block" }}
+                >
+                  ${activeData.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <PctBadge val={activeData.unrealizedPortPct} isMobile={isMobile} />
               </div>
               <div style={{ marginTop: "8px", display: "flex", flexWrap: "wrap", gap: "6px", alignItems: "center" }}>
-                <span style={{ fontSize: "13px", color: "#ffd700cc", fontWeight: "500" }}>
-                  {activeData.unrealizedPortPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>del portafolio</span>
-                </span>
+                <span style={{ fontSize: "11px", color: "#9e968f", fontWeight: "500" }}>del portafolio</span>
                 {activeData.unrealizedPct > 0 && (
-                  <span style={{ fontSize: "11px", color: "#ffd70066" }}>·</span>
-                )}
-                {activeData.unrealizedPct > 0 && (
-                  <span
-                    onClick={() => setEditUnrealized({ year: activeData.year, field: "pct", label: `${activeData.year} · UNREALIZED (%)`, value: activeData.unrealizedPct })}
-                    style={{ fontSize: "11px", color: "#ffd700aa", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
-                  >
-                    {activeData.unrealizedPct.toFixed(2)}% <span style={{ fontSize: "9px", color: "#5e564f" }}>man.</span>
-                  </span>
+                  <>
+                    <span style={{ fontSize: "11px", color: "#ffd70066" }}>·</span>
+                    <span
+                      onClick={() => setEditUnrealized({ year: activeData.year, field: "pct", label: `${activeData.year} · UNREALIZED (%)`, value: activeData.unrealizedPct })}
+                      style={{ fontSize: "11px", color: "#ffd700aa", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
+                    >
+                      {activeData.unrealizedPct.toFixed(2)}% <span style={{ fontSize: "9px", color: "#5e564f" }}>man.</span>
+                    </span>
+                  </>
                 )}
                 {activeData.unrealizedPct === 0 && (
                   <span
@@ -1958,22 +1985,28 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             {/* CARD 3: REALIZED */}
             <div style={{ background: "#080d0f", border: "1px solid #00ff8833", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #00ff88" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#00ff88", marginBottom: "8px", fontWeight: "600" }}>REALIZED (TOTAL)</div>
-              <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.realizedUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
-                ${activeData.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+                <div style={{ fontSize: "22px", fontWeight: "700", color: activeData.realizedUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
+                  ${activeData.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <PctBadge val={activeData.realizedPct} isMobile={isMobile} />
               </div>
-              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                {activeData.realizedPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>del portafolio</span>
+              <div style={{ fontSize: "11px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                del portafolio
               </div>
             </div>
 
             {/* CARD 4: REND. ANUAL */}
             <div style={{ background: "#080d0f", border: "1px solid #4aaeff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #4aaeff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#4aaeff", marginBottom: "8px", fontWeight: "600" }}>REND. ANUAL</div>
-              <div style={{ fontSize: "22px", fontWeight: "700", color: rendAnualUSD >= 0 ? "#4aaeff" : "#ff4455", lineHeight: 1 }}>
-                ${rendAnualUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+                <div style={{ fontSize: "22px", fontWeight: "700", color: rendAnualUSD >= 0 ? "#4aaeff" : "#ff4455", lineHeight: 1 }}>
+                  ${rendAnualUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <PctBadge val={rendAnualPct} isMobile={isMobile} />
               </div>
-              <div style={{ fontSize: "13px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                {rendAnualPct.toFixed(2)}% <span style={{ fontSize: "10px", color: "#5e564f" }}>del portafolio</span>
+              <div style={{ fontSize: "11px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
+                del portafolio
               </div>
             </div>
 
@@ -2000,7 +2033,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     </td>
                     <td style={{ padding: "12px 8px" }}>
                       <span style={{ color: d.tradingUSD >= 0 ? "#fff" : "#ff4455", fontWeight: "600" }}>${d.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.tradingPortPct.toFixed(2)}%</div>
+                      <div style={{ marginTop: "4px" }}><PctBadge val={d.tradingPortPct} fontSize="10px" /></div>
                     </td>
                     
                     {/* Unrealized Editable */}
@@ -2013,11 +2046,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                           >
                             ${d.unrealizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </div>
-                          <div 
-                            onClick={() => setEditUnrealized({ year: d.year, field: "pct", label: `${d.year} · UNREALIZED (%)`, value: d.unrealizedPct })}
-                            style={{ fontSize: "9px", color: "#ffd70099", marginTop: "2px", cursor: "pointer", borderBottom: "1px dashed #ffd70033", display: "inline-block" }}
-                          >
-                            {d.unrealizedPortPct.toFixed(2)}%
+                          <div style={{ marginTop: "4px" }}>
+                            <PctBadge val={d.unrealizedPortPct} fontSize="10px" />
                           </div>
                         </div>
                         <span style={{ fontSize: "9px", color: "#ffd70044" }}>✎</span>
@@ -2026,7 +2056,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     
                     <td style={{ padding: "12px 8px" }}>
                       <span style={{ color: d.realizedUSD >= 0 ? "#00ff88" : "#ff4455", fontWeight: "700" }}>${d.realizedUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                      <div style={{ fontSize: "9px", color: "#9e968f", marginTop: "2px" }}>{d.realizedPct.toFixed(2)}%</div>
+                      <div style={{ marginTop: "4px" }}><PctBadge val={d.realizedPct} fontSize="10px" /></div>
                     </td>
                     <td style={{ padding: "12px 8px" }}>
                       {(() => {
@@ -2035,7 +2065,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                         return (
                           <>
                             <span style={{ color: total >= 0 ? "#4aaeff" : "#ff4455", fontWeight: "700" }}>${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            <div style={{ fontSize: "9px", color: "#4aaeff88", marginTop: "2px" }}>{totalPct.toFixed(2)}%</div>
+                            <div style={{ marginTop: "4px" }}><PctBadge val={totalPct} fontSize="10px" /></div>
                           </>
                         );
                       })()}
@@ -2072,8 +2102,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               gridColumn: isMobile ? "span 2" : "span 1"
             }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA TOTAL TRADING</div>
-              <div style={{ fontSize: "24px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
-                ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "24px", fontWeight: "700", color: activeData.tradingUSD >= 0 ? "#fff" : "#ff4455", lineHeight: 1 }}>
+                  ${activeData.tradingUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <PctBadge val={activeData.tradingPortPct} isMobile={isMobile} />
               </div>
               <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
                 G/L acumulado en {activeData.year}
@@ -2083,19 +2116,19 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             {/* CARD 2: % DEL PORTAFOLIO */}
             <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>% DEL PORTAFOLIO</div>
-              <div style={{ fontSize: "24px", fontWeight: "700", color: "#aa88ff", lineHeight: 1 }}>
-                {activeData.tradingPortPct.toFixed(2)}%
+              <div style={{ display: "flex", alignItems: "baseline" }}>
+                <PctBadge val={activeData.tradingPortPct} fontSize={isMobile ? "18px" : "22px"} />
               </div>
               <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                del portafolio
+                del portafolio total
               </div>
             </div>
 
             {/* CARD 3: GANANCIA PROMEDIO MENSUAL % */}
             <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA PROM. MENSUAL %</div>
-              <div style={{ fontSize: "24px", fontWeight: "700", color: activeData.tradingPct >= 0 ? "#aa88ff" : "#ff4455", lineHeight: 1 }}>
-                {activeData.tradingPct.toFixed(2)}%
+              <div style={{ display: "flex", alignItems: "baseline" }}>
+                <PctBadge val={activeData.tradingPct} fontSize={isMobile ? "18px" : "22px"} />
               </div>
               <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
                 ganancia promedio mensual %
@@ -2105,8 +2138,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             {/* CARD 4: GANANCIA PROMEDIO MENSUAL $ */}
             <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA PROM. MENSUAL $</div>
-              <div style={{ fontSize: "24px", fontWeight: "700", color: activeData.avgGainUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
-                ${activeData.avgGainUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "24px", fontWeight: "700", color: activeData.avgGainUSD >= 0 ? "#00ff88" : "#ff4455", lineHeight: 1 }}>
+                  ${activeData.avgGainUSD.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <PctBadge val={activeData.tradingPct} isMobile={isMobile} />
               </div>
               <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
                 ganancia promedio mensual $
@@ -2952,7 +2988,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                         <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color }}>
                           {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
-                        <div style={{ fontSize: "9px", color: `${color}99`, marginTop: "3px" }}>{pctVal} del portafolio</div>
+                        <div style={{ marginTop: "5px", display: "flex", justifyContent: "center" }}>
+                          <PctBadge val={parseFloat(pctVal)} fontSize="10px" />
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2975,7 +3013,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                     <div style={{ fontSize: isMobile ? "20px" : "26px", fontWeight: "700", color: glTotalColor, lineHeight: 1 }}>
                       {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <div style={{ fontSize: "9px", color: `${glTotalColor}99` }}>{pct(d.totalGL || 0)} del portafolio</div>
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <PctBadge val={parseFloat(pct(d.totalGL || 0))} fontSize="10px" />
+                    </div>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
                       <path d="M22 12A10 10 0 0 0 12 2v10z" stroke={glTotalColor} strokeWidth="2"/>
@@ -3011,7 +3051,9 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ fontSize: isMobile ? "15px" : "18px", fontWeight: "700", color: "#4aaeff" }}>
                         ${(d.depositos || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      <div style={{ fontSize: "9px", color: "#4aaeff99", marginTop: "3px" }}>{pct(d.depositos || 0)} del portafolio</div>
+                      <div style={{ marginTop: "5px", display: "flex", justifyContent: "center" }}>
+                        <PctBadge val={parseFloat(pct(d.depositos || 0))} fontSize="10px" />
+                      </div>
                     </div>
                   </div>
 
