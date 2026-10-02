@@ -2089,7 +2089,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           </div>
 
           {/* Trading Cards Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(5, 1fr)", gap: "16px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: "16px" }}>
             
             {/* CARD 1: GANANCIA TOTAL TRADING */}
             <div style={{ 
@@ -2097,8 +2097,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               border: "1px solid #aa88ff33", 
               borderRadius: "12px", 
               padding: "16px 20px", 
-              borderLeft: "3px solid #aa88ff",
-              gridColumn: isMobile ? "span 2" : "span 1"
+              borderLeft: "3px solid #aa88ff"
             }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA TOTAL TRADING</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
@@ -2112,29 +2111,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               </div>
             </div>
 
-            {/* CARD 2: % DEL PORTAFOLIO */}
-            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
-              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>% DEL PORTAFOLIO</div>
-              <div style={{ display: "flex", alignItems: "baseline" }}>
-                <PctBadge val={activeData.tradingPortPct} fontSize={isMobile ? "18px" : "22px"} />
-              </div>
-              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                del portafolio total
-              </div>
-            </div>
-
-            {/* CARD 3: GANANCIA PROMEDIO MENSUAL % */}
-            <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
-              <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA PROM. MENSUAL %</div>
-              <div style={{ display: "flex", alignItems: "baseline" }}>
-                <PctBadge val={activeData.tradingPct} fontSize={isMobile ? "18px" : "22px"} />
-              </div>
-              <div style={{ fontSize: "12px", color: "#9e968f", marginTop: "8px", fontWeight: "500" }}>
-                ganancia promedio mensual %
-              </div>
-            </div>
-
-            {/* CARD 4: GANANCIA PROMEDIO MENSUAL $ */}
+            {/* CARD 2: GANANCIA PROMEDIO MENSUAL $ */}
             <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>GANANCIA PROM. MENSUAL $</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "6px", flexWrap: "wrap" }}>
@@ -2148,7 +2125,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
               </div>
             </div>
 
-            {/* CARD 5: CAPITAL UTILIZADO PROMEDIO MENSUAL */}
+            {/* CARD 3: CAPITAL UTILIZADO PROMEDIO MENSUAL */}
             <div style={{ background: "#080d0f", border: "1px solid #aa88ff33", borderRadius: "12px", padding: "16px 20px", borderLeft: "3px solid #aa88ff" }}>
               <div style={{ fontSize: "10px", letterSpacing: "1px", color: "#aa88ff", marginBottom: "8px", fontWeight: "600" }}>CAPITAL UTILIZADO PROM.</div>
               <div style={{ fontSize: "24px", fontWeight: "700", color: "#fff", lineHeight: 1 }}>
@@ -2879,6 +2856,11 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             const base = d.valorFinal || 1;
             const pct = (val) => base > 0 ? ((val / base) * 100).toFixed(2) + "%" : "—";
 
+            const realizedGL = (d.glTrading || 0) + (d.glVentas || 0) + (d.glDividendos || 0);
+            const realizedPct = base > 0 ? (realizedGL / base) * 100 : 0;
+            const unrlEffPct = (unrealized[d.year]?.pct > 0) ? unrealized[d.year].pct : (base > 0 ? (unrealizedVal / base) * 100 : 0);
+            const totalGLPct = realizedPct + unrlEffPct;
+
             const metricCards = [
               {
                 label: "G/L TRADING",
@@ -2988,7 +2970,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                           {value >= 0 ? "" : "-"}${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div style={{ marginTop: "5px", display: "flex", justifyContent: "center" }}>
-                          <PctBadge val={parseFloat(pctVal)} fontSize="10px" />
+                          <PctBadge val={parseFloat(pctVal)} fontSize={isMobile ? "10px" : "13px"} />
                         </div>
                       </div>
                     </div>
@@ -3013,7 +2995,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       {(d.totalGL || 0) >= 0 ? "" : "-"}${Math.abs(d.totalGL || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                     <div style={{ display: "flex", justifyContent: "center" }}>
-                      <PctBadge val={parseFloat(pct(d.totalGL || 0))} fontSize="10px" />
+                      <PctBadge val={totalGLPct} fontSize={isMobile ? "11px" : "15px"} />
                     </div>
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <path d="M21.21 15.89A10 10 0 1 1 8 2.83" stroke={glTotalColor} strokeWidth="2" strokeLinecap="round"/>
@@ -3051,7 +3033,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                         ${(d.depositos || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       <div style={{ marginTop: "5px", display: "flex", justifyContent: "center" }}>
-                        <PctBadge val={parseFloat(pct(d.depositos || 0))} fontSize="10px" />
+                        <PctBadge val={parseFloat(pct(d.depositos || 0))} fontSize={isMobile ? "10px" : "13px"} />
                       </div>
                     </div>
                   </div>
@@ -3085,7 +3067,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
                       <div style={{ fontSize: isMobile ? "17px" : "22px", fontWeight: "700", color: "#00e5ff" }}>
                         ${(d.valorFinal || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      <div style={{ fontSize: "9px", color: "#00e5ff99", marginTop: "3px" }}>100% del portafolio</div>
+                      <div style={{ fontSize: isMobile ? "9px" : "12px", color: "#00e5ff99", marginTop: "3px", fontWeight: "600" }}>100% del portafolio</div>
                       <div style={{ fontSize: "8px", color: "#9e968f", marginTop: "2px" }}>(TOTAL G/L + DEPÓSITOS)</div>
                     </div>
                   </div>
