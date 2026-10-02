@@ -1,7 +1,8 @@
 # Swing Trading Portfolio App — Resumen del Proyecto
 
-> **Archivo para agentes AI.** Lee este archivo en lugar de escanear todo el código fuente.
-> Última actualización: 2026-09-02
+> **Archivo para agentes AI.** Lee este archivo y [HISTORIAL.md](file:///d:/NIKO/PROYECTOS-WEB-APP/REPOS/swing-trading-app/HISTORIAL.md) en lugar de escanear todo el código fuente.
+> Para el mapa exhaustivo de líneas (3413 líneas), fórmulas exactas y registro de cambios recientes, consulta **HISTORIAL.md**.
+> Última actualización: 2026-10-01
 
 ---
 
