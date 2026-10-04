@@ -625,356 +625,7 @@ const PieLabel = ({ cx, cy, midAngle, outerRadius, percent, name }) => {
 };
 
 // ═══════════════════════════════ MAIN APP ═════════════════════════════
-// ══════════════════════════════ LOGIN LOCAL ════════════════════════════
-// Usuarios locales (sin correo) guardados en localStorage con la contraseña hasheada.
-// Cada usuario lleva anclada su propia URL de Google Apps Script.
-// La sesión vive solo en memoria: al abrir/recargar la app siempre aparece el login.
-const USERS_KEY = "swingUsers";
-const SCRIPT_URL_KEY = "swingScriptUrl";
-const AUTO_LOAD_ON_LOGIN = true; // true = al entrar carga los datos del Sheet automáticamente
-
-const isValidScriptUrl = (u) => /^https:\/\/script\.google\.com\/.+/i.test((u || "").trim());
-
-const readUsers = () => {
-  try {
-    const u = JSON.parse(localStorage.getItem(USERS_KEY));
-    if (u && typeof u === "object") return u;
-  } catch { /* ignora */ }
-  // Migración desde el formato anterior (un solo usuario en "swingAuth")
-  try {
-    const old = JSON.parse(localStorage.getItem("swingAuth"));
-    if (old && old.user && old.salt && old.hash) {
-      const migrated = { [old.user]: { display: old.display || old.user, salt: old.salt, hash: old.hash, url: localStorage.getItem(SCRIPT_URL_KEY) || "" } };
-      localStorage.setItem(USERS_KEY, JSON.stringify(migrated));
-      localStorage.removeItem("swingAuth");
-      return migrated;
-    }
-  } catch { /* ignora */ }
-  return {};
-};
-
-const writeUsers = (u) => localStorage.setItem(USERS_KEY, JSON.stringify(u));
-
-// Actualiza la URL anclada a un usuario (se usa al cambiarla desde la pestaña ANÁLISIS)
-const saveUserUrl = (display, url) => {
-  const users = readUsers();
-  const key = (display || "").toLowerCase();
-  if (users[key]) { users[key].url = url; writeUsers(users); }
-};
-
-// ── Credenciales en el Google Sheet ─────────────────────────────────
-// El usuario (nombre, salt y hash de la contraseña; nunca la contraseña) se guarda dentro del
-// JSON de AppData bajo la clave "auth", así se puede iniciar sesión desde otro dispositivo.
-const fetchSheetSnapshot = async (url) => {
-  const res = await fetch(`${url}?action=get`, { method: "GET" });
-  const json = await res.json();
-  if (json && json.error) throw new Error(json.error);
-  return json || {};
-};
-
-const pushSheetSnapshot = async (url, snap) => {
-  await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: "data=" + encodeURIComponent(JSON.stringify(snap)),
-  });
-};
-
-// Lee el Sheet, agrega al usuario en "auth" sin tocar el resto de los datos y verifica que quedó guardado
-const saveAuthToSheet = async (url, key, entry, overwrite = false) => {
-  const snap = await fetchSheetSnapshot(url);
-  if (snap.auth && snap.auth[key] && !overwrite) return;
-  const pub = { display: entry.display, salt: entry.salt, hash: entry.hash };
-  try {
-    await pushSheetSnapshot(url, { ...snap, auth: { ...(snap.auth || {}), [key]: pub } });
-  } catch { /* se verifica abajo */ }
-  const check = await fetchSheetSnapshot(url);
-  if (!check.auth || !check.auth[key] || check.auth[key].hash !== entry.hash) {
-    throw new Error("No se pudo guardar el usuario en el Sheet");
-  }
-};
-
-const toHex = (bytes) => Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2, "0")).join("");
-
-const newSalt = () => {
-  const arr = new Uint8Array(16);
-  if (window.crypto?.getRandomValues) window.crypto.getRandomValues(arr);
-  else for (let i = 0; i < arr.length; i++) arr[i] = Math.floor(Math.random() * 256);
-  return toHex(arr);
-};
-
-const hashPassword = async (password, salt) => {
-  try {
-    if (window.crypto?.subtle) {
-      const enc = new TextEncoder();
-      const key = await window.crypto.subtle.importKey("raw", enc.encode(password), "PBKDF2", false, ["deriveBits"]);
-      const bits = await window.crypto.subtle.deriveBits(
-        { name: "PBKDF2", salt: enc.encode(salt), iterations: 100000, hash: "SHA-256" }, key, 256
-      );
-      return toHex(bits);
-    }
-  } catch { /* cae al respaldo */ }
-  let h = 5381;
-  const s = salt + password;
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  return "f" + (h >>> 0).toString(16);
-};
-
-const loginBtnSt = (color, bg, border) => ({
-  width: "100%", padding: "14px", background: bg, border: `1px solid ${border}`, borderRadius: "12px",
-  color, fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700",
-});
-
-function LoginScreen({ onLogin }) {
-  const [users, setUsers] = useState(readUsers);
-  const [mode, setMode] = useState(Object.keys(users).length ? "login" : "signup"); // login | signup
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const [showPass, setShowPass] = useState(false);
-  const [url, setUrl] = useState(""); // siempre vacío al abrir SIGN UP
-  const [changeUrl, setChangeUrl] = useState(false);
-  const [newDevice, setNewDevice] = useState(false);       // usuario no guardado en este dispositivo → pide la URL
-  const [allowOverwrite, setAllowOverwrite] = useState(false); // solo tras "Restablecer usuario"
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const isSignup = mode === "signup";
-  const showUrlField = isSignup || changeUrl || newDevice;
-
-  const switchMode = (m) => {
-    setMode(m); setUser(""); setPass(""); setUrl(""); setChangeUrl(false); setNewDevice(false); setAllowOverwrite(false); setError(""); setShowPass(false);
-  };
-
-  const submit = async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    setError("");
-    const name = user.trim();
-    const key = name.toLowerCase();
-    const cleanUrl = url.trim();
-    const urlMsg = "Pega la URL del Apps Script (empieza con https://script.google.com/)";
-    const connErr = "No se pudo conectar con tu Google Sheet. Revisa que la URL sea la de la implementación (termina en /exec), que el acceso sea \"Cualquier persona\" y tu conexión";
-
-    // ── SIGN UP ──
-    if (isSignup) {
-      if (name.length < 3) return setError("El usuario debe tener al menos 3 caracteres");
-      if (pass.length < 4) return setError("La contraseña debe tener al menos 4 caracteres");
-      if (!isValidScriptUrl(cleanUrl)) return setError(urlMsg);
-      setBusy(true);
-      try {
-        // Leer el Sheet valida la URL y evita pisar un usuario que ya existe ahí
-        const snap = await fetchSheetSnapshot(cleanUrl);
-        if (snap.auth && snap.auth[key] && !allowOverwrite) {
-          setBusy(false);
-          return setError("Ese usuario ya existe en este Google Sheet. Ve a LOGIN");
-        }
-        const salt = newSalt();
-        const hash = await hashPassword(pass, salt);
-        const entry = { display: name, salt, hash, url: cleanUrl };
-        await saveAuthToSheet(cleanUrl, key, entry, true);
-        const next = { ...users, [key]: entry };
-        writeUsers(next); setUsers(next);
-        localStorage.setItem(SCRIPT_URL_KEY, cleanUrl);
-        setBusy(false);
-        onLogin(name);
-      } catch {
-        setBusy(false);
-        setError(connErr);
-      }
-      return;
-    }
-
-    // ── LOGIN ──
-    if (!name || !pass) return setError("Escribe tu usuario y contraseña");
-    if (changeUrl && !isValidScriptUrl(cleanUrl)) return setError(urlMsg);
-    const entry = users[key];
-
-    // Usuario que no está en este dispositivo → se busca en el Google Sheet (solo la primera vez aquí)
-    if (!entry) {
-      if (!isValidScriptUrl(cleanUrl)) {
-        setNewDevice(true);
-        return setError("Este usuario no está guardado en este dispositivo. Pega la URL de tu Google Sheet (solo esta vez) para iniciar sesión aquí");
-      }
-      setBusy(true);
-      try {
-        const snap = await fetchSheetSnapshot(cleanUrl);
-        const remote = snap.auth && snap.auth[key];
-        const h = remote ? await hashPassword(pass, remote.salt) : "";
-        if (!remote || h !== remote.hash) {
-          setBusy(false);
-          return setError("Usuario o contraseña incorrectos");
-        }
-        const display = remote.display || name;
-        const next = { ...users, [key]: { display, salt: remote.salt, hash: remote.hash, url: cleanUrl } };
-        writeUsers(next); setUsers(next);
-        localStorage.setItem(SCRIPT_URL_KEY, cleanUrl);
-        setBusy(false);
-        onLogin(display);
-      } catch {
-        setBusy(false);
-        setError(connErr);
-      }
-      return;
-    }
-
-    // Usuario guardado en este dispositivo
-    setBusy(true);
-    const hash = await hashPassword(pass, entry.salt);
-    if (hash !== entry.hash) {
-      setBusy(false);
-      return setError("Usuario o contraseña incorrectos");
-    }
-
-    let finalUrl = entry.url;
-    if (changeUrl) {
-      try {
-        await saveAuthToSheet(cleanUrl, key, entry); // valida la URL nueva y deja el usuario también en ese Sheet
-      } catch {
-        setBusy(false);
-        return setError(connErr);
-      }
-      finalUrl = cleanUrl;
-      const next = { ...users, [key]: { ...entry, url: finalUrl } };
-      writeUsers(next); setUsers(next);
-    }
-    if (!finalUrl) {
-      setBusy(false);
-      return setError("Tu usuario no tiene URL guardada. Pulsa CAMBIAR URL y pégala");
-    }
-    localStorage.setItem(SCRIPT_URL_KEY, finalUrl);
-    // Segundo plano: asegura que este usuario también viva en el Sheet (repara usuarios creados antes)
-    if (!changeUrl) saveAuthToSheet(finalUrl, key, entry).catch(() => {});
-    setBusy(false);
-    onLogin(entry.display);
-  };
-
-  const toggleChangeUrl = () => { setError(""); setUrl(""); setChangeUrl(v => !v); };
-
-  const resetUser = () => {
-    const name = user.trim();
-    const key = name.toLowerCase();
-    if (!name) return setError("Escribe arriba tu usuario para restablecerlo");
-    if (!window.confirm(`Vas a restablecer el usuario "${name}": tendrás que crearlo de nuevo con una contraseña nueva y la URL de tu Google Sheet. Tus datos del portafolio NO se borran. ¿Continuar?`)) return;
-    const next = { ...users };
-    delete next[key];
-    writeUsers(next);
-    setUsers(next);
-    setMode("signup"); setUser(name); setPass(""); setUrl(""); setChangeUrl(false); setNewDevice(false); setAllowOverwrite(true); setError("");
-  };
-
-  const linkBtn = { background: "none", border: "none", color: "#9e968f", fontSize: "10px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", textDecoration: "underline", padding: "6px" };
-  const tabSt = (active) => ({
-    flex: 1, padding: "12px", border: "none", borderRadius: "10px", fontFamily: "inherit", fontSize: "11px", letterSpacing: "2px", fontWeight: "700", cursor: "pointer",
-    background: active ? "linear-gradient(135deg,#003d22,#006636)" : "transparent", color: active ? "#00ff88" : "#4a5a5a",
-    boxShadow: active ? "inset 0 0 0 1px #00ff8844" : "none",
-  });
-
-  return (
-    <div style={{ width: "100%", height: "100dvh", background: "#080d0f", fontFamily: "'Courier New',monospace", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
-      <div style={{ width: "100%", maxWidth: "480px", margin: "0 auto", padding: "calc(28px + env(safe-area-inset-top, 0px)) 16px calc(28px + env(safe-area-inset-bottom, 0px))", boxSizing: "border-box" }}>
-
-        <div style={{ textAlign: "center", marginBottom: "22px" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866", marginBottom: "6px" }}>◈ SWING TRADING</div>
-          <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff" }}>Portfolio Manager</div>
-        </div>
-
-        {/* LOGIN / SIGN UP */}
-        <div style={{ display: "flex", gap: "6px", background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "14px", padding: "5px", marginBottom: "14px" }}>
-          <button type="button" onClick={() => switchMode("login")} style={tabSt(!isSignup)}>LOGIN</button>
-          <button type="button" onClick={() => switchMode("signup")} style={tabSt(isSignup)}>SIGN UP</button>
-        </div>
-
-        <form onSubmit={submit} style={{ background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "16px", padding: "18px" }}>
-          <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>☁ GOOGLE SHEETS · BASE DE DATOS</div>
-          <div style={{ fontSize: "10px", color: "#9e968f", marginBottom: "16px", lineHeight: "1.6" }}>
-            {isSignup
-              ? "Crea tu usuario local y conecta tu Google Sheet. La URL quedará anclada a tu usuario, solo la pones una vez."
-              : "Ingresa tu usuario y contraseña. Tu Google Sheet ya está anclado a tu usuario. En un dispositivo nuevo te pediremos la URL una sola vez."}
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <div style={labelSt}>USUARIO</div>
-            <input type="text" name="username" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-              value={user} onChange={e => setUser(e.target.value)} placeholder="tu usuario" style={inputSt} />
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <div style={labelSt}>CONTRASEÑA</div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input type={showPass ? "text" : "password"} name="password" autoComplete={isSignup ? "new-password" : "current-password"}
-                value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••" style={{ ...inputSt, flex: 1 }} />
-              <button type="button" onClick={() => setShowPass(v => !v)} aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
-                style={{ padding: "0 14px", background: "#0a1818", border: "1px solid #1a2a2a", borderRadius: "10px", color: "#9e968f", fontSize: "14px", cursor: "pointer", fontFamily: "inherit" }}>
-                {showPass ? "🙈" : "👁"}
-              </button>
-            </div>
-          </div>
-
-          {/* URL: solo en SIGN UP (vacía) o al pulsar CAMBIAR URL en LOGIN */}
-          {showUrlField && (
-            <div style={{ marginBottom: "12px" }}>
-              <div style={labelSt}>{isSignup ? "SCRIPT URL (Google Apps Script)" : changeUrl ? "NUEVA SCRIPT URL" : "SCRIPT URL (solo esta vez en este dispositivo)"}</div>
-              <input type="text" name="scripturl" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                value={url} onChange={e => setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/..."
-                style={{ ...inputSt, fontSize: "10px" }} />
-              {!isSignup && changeUrl && (
-                <div style={{ fontSize: "8px", color: "#ffd70099", marginTop: "6px", letterSpacing: "1px" }}>
-                  La nueva URL se guardará en tu usuario al iniciar sesión.
-                </div>
-              )}
-            </div>
-          )}
-
-          {error && (
-            <div style={{ fontSize: "10px", color: "#ff4455", background: "#ff445512", border: "1px solid #ff445533", borderRadius: "8px", padding: "9px 12px", marginBottom: "12px", lineHeight: "1.5" }}>
-              ✕ {error}
-            </div>
-          )}
-
-          <button type="submit" disabled={busy}
-            style={{ ...loginBtnSt("#00ff88", "linear-gradient(135deg,#003d22,#006636)", "#00ff8844"), cursor: busy ? "wait" : "pointer" }}>
-            {busy ? "⟳ VERIFICANDO..." : isSignup ? "✓ CREAR USUARIO Y ENTRAR" : "→ ENTRAR"}
-          </button>
-
-          {!isSignup && (
-            <>
-              <button type="button" onClick={toggleChangeUrl}
-                style={{ ...loginBtnSt("#ffd700", "linear-gradient(135deg,#2a1a00,#4a3000)", "#ffd70044"), marginTop: "10px" }}>
-                {changeUrl ? "✕ CANCELAR CAMBIO DE URL" : "⇄ CAMBIAR URL"}
-              </button>
-              <div style={{ textAlign: "center", marginTop: "12px" }}>
-                <button type="button" onClick={resetUser} style={linkBtn}>¿Olvidaste tu contraseña? Restablecer usuario</button>
-              </div>
-            </>
-          )}
-
-          {/* Instrucciones: solo en SIGN UP o al cambiar la URL */}
-          {showUrlField && (
-            <div style={{ marginTop: "14px", background: "#080d0f", borderRadius: "10px", padding: "12px" }}>
-              <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#ffd700", marginBottom: "8px" }}>CÓMO CONFIGURAR</div>
-              <div style={{ fontSize: "10px", color: "#9e968f", lineHeight: "1.8" }}>
-                1. Abre tu Google Sheet<br />
-                2. Extensiones → Apps Script<br />
-                3. Borra el código existente y pega el contenido del archivo descargado:<br />
-              </div>
-              <button type="button" onClick={downloadScript} style={{ width: "100%", padding: "12px", marginTop: "8px", marginBottom: "8px", background: "linear-gradient(135deg,#004d2a,#007a42)", border: "1px solid #00ff8844", borderRadius: "10px", color: "#00ff88", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
-                📥 DESCARGAR google-apps-script.js
-              </button>
-              <div style={{ fontSize: "10px", color: "#9e968f", lineHeight: "1.8" }}>
-                4. Guarda el script (Ctrl+S)<br />
-                5. Implementar → Nueva implementación → App web<br />
-                6. Acceso: <span style={{ color: "#ffd700" }}>Cualquier persona</span><br />
-                7. Copia la URL y pégala arriba
-              </div>
-            </div>
-          )}
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function MainApp({ user, onLogout }) {
+export default function App() {
   const [allData, setAllData] = useState({ [START_YEAR]: SEED_2026 });
   const [goal, setGoal] = useState(DEFAULT_GOAL);
   const [editGoal, setEditGoal] = useState(false);
@@ -1591,16 +1242,7 @@ function MainApp({ user, onLogout }) {
     if (!scriptUrl) { showToast("⚠️ Configura el URL del script primero"); return; }
     setSyncStatus("pushing");
     try {
-      // Lee el Sheet primero para no borrar los usuarios guardados ahí
-      const remote = await fetchSheetSnapshot(scriptUrl);
-      const auth = { ...(remote.auth || {}) };
-      const localUsers = readUsers();
-      Object.keys(localUsers).forEach(k => {
-        if (localUsers[k].url === scriptUrl && !auth[k]) {
-          auth[k] = { display: localUsers[k].display, salt: localUsers[k].salt, hash: localUsers[k].hash };
-        }
-      });
-      const body = "data=" + encodeURIComponent(JSON.stringify({ ...getAppSnapshot(), auth }));
+      const body = "data=" + encodeURIComponent(JSON.stringify(getAppSnapshot()));
       await fetch(scriptUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -1620,18 +1262,7 @@ function MainApp({ user, onLogout }) {
     const clean = url.trim();
     setScriptUrl(clean);
     localStorage.setItem("swingScriptUrl", clean);
-    saveUserUrl(user, clean); // mantiene la URL anclada al usuario
   };
-
-  const handleLogout = () => {
-    if (window.confirm("¿Cerrar sesión? Los cambios que no hayas guardado en el Sheet se perderán.")) onLogout();
-  };
-
-  // Al entrar (después del login) carga los datos del Google Sheet
-  useEffect(() => {
-    if (AUTO_LOAD_ON_LOGIN && scriptUrl) pullFromSheet();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // ── AI ────────────────────────────────────────────────────────────
   const askAI = useCallback(async () => {
@@ -3648,12 +3279,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         </div>
       )}
       <div style={{ padding: "16px 20px 12px", paddingTop: "calc(16px + env(safe-area-inset-top))", borderBottom: "1px solid #0f1a1a", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866" }}>◈ SWING TRADING</div>
-          <button onClick={handleLogout} style={{ background: "none", border: "1px solid #00ff8833", borderRadius: "6px", padding: "3px 8px", color: "#9e968f", fontSize: "8px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer" }}>
-            {user} · SALIR ⏻
-          </button>
-        </div>
+        <div style={{ fontSize: "8px", letterSpacing: "4px", color: "#00ff8866" }}>◈ SWING TRADING</div>
         <div style={{ fontSize: "20px", fontWeight: "700", color: "#fff", marginBottom: "12px" }}>
           {tab === "home" ? "Dashboard" : tab === "tabla" ? "Registro Mensual" : tab === "resumen" ? "Portafolio" : tab === "graficos" ? "Gráficos" : tab === "performance" ? "Performance" : "Análisis AI"}
         </div>
@@ -3731,15 +3357,6 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
             <button onClick={() => goYear(+1)} style={{ background: "none", border: "none", color: "#c9c0b4", cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: "0 4px" }}>›</button>
           </div>
         </div>
-
-        {/* Usuario / cerrar sesión */}
-        <div style={{ padding: "12px 12px 16px", borderTop: "1px solid #0f1a1a" }}>
-          <div style={{ fontSize: "7px", letterSpacing: "2px", color: "#00ff8866", marginBottom: "8px", paddingLeft: "4px" }}>SESIÓN</div>
-          <button onClick={handleLogout} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", background: "#0a1015", border: "1px solid #00ff8822", borderRadius: "12px", padding: "10px 12px", color: "#c9c0b4", fontSize: "10px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer" }}>
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>👤 {user}</span>
-            <span style={{ color: "#ff4455", flexShrink: 0 }}>SALIR ⏻</span>
-          </button>
-        </div>
       </div>
 
       {/* ── MAIN CONTENT ── */}
@@ -3773,12 +3390,4 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       <Modals />
     </div>
   );
-}
-
-// ══════════════════════════════ ROOT (PUERTA DE LOGIN) ════════════════
-export default function App() {
-  const [session, setSession] = useState(null); // solo en memoria: al recargar vuelve al login
-
-  if (!session) return <LoginScreen onLogin={(name) => setSession(name)} />;
-  return <MainApp user={session} onLogout={() => setSession(null)} />;
 }
