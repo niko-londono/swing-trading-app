@@ -807,6 +807,15 @@ export default function App() {
 
   const fileRef = useRef();
 
+  // iOS Safari hace zoom al enfocar inputs con fuente < 16px: se fuerza 16px en móvil para evitarlo
+  useEffect(() => {
+    const st = document.createElement("style");
+    st.setAttribute("data-no-input-zoom", "");
+    st.textContent = "@media (max-width: 767px) { input, select, textarea { font-size: 16px !important; } }";
+    document.head.appendChild(st);
+    return () => st.remove();
+  }, []);
+
   const [windowWidth, setWindowWidth] = useState(() => window.innerWidth);
   useEffect(() => {
     const onResize = () => setWindowWidth(window.innerWidth);
