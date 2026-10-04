@@ -210,6 +210,85 @@ const PctBadge = ({ val, fontSize, isMobile = false, style = {} }) => {
 
 // ══════════════════════════════ MODALS ════════════════════════════════
 
+// ── Contraseñas de bases de datos (bloqueo del lado del cliente) ──
+const hashPw = async (pw) => {
+  const txt = "swing2026|" + pw;
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    return "plain:" + txt;
+  }
+};
+const PRINCIPAL_PW_HASH = "42cb4af0814233568a602daee58ee0cff9fd86fd373dce249dea47a9c938c2cc";
+
+// Formulario agregar/editar base de datos (estado local para no perder el foco al escribir)
+function ProfileForm({ initial, onSave, onCancel }) {
+  const [name, setName] = useState(initial.name);
+  const [url, setUrl] = useState(initial.url);
+  const [pw, setPw] = useState("");
+  const [removePw, setRemovePw] = useState(false);
+  const editing = !!initial.id;
+  return (
+    <div style={{ background: "#080d0f", border: "1px solid #00ff8833", borderRadius: "10px", padding: "12px" }}>
+      <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#ffd700", marginBottom: "10px" }}>
+        {editing ? "EDITAR BASE DE DATOS" : "NUEVA BASE DE DATOS"}
+      </div>
+      <div style={labelSt}>NOMBRE</div>
+      <input type="text" placeholder="Ej: Nicolas, Julian..." value={name} onChange={e => setName(e.target.value)}
+        style={{ ...inputSt, fontSize: "12px", marginBottom: "10px" }} />
+      <div style={labelSt}>SCRIPT URL (Google Apps Script)</div>
+      <input type="text" placeholder="https://script.google.com/macros/s/..." value={url} onChange={e => setUrl(e.target.value)}
+        style={{ ...inputSt, fontSize: "10px", marginBottom: "10px" }} />
+      <div style={labelSt}>CONTRASEÑA {editing && initial.hasPw ? "(vacío = mantener la actual)" : "(opcional)"}</div>
+      <input type="password" autoComplete="new-password" placeholder="Se pedirá al seleccionar esta base de datos" value={pw}
+        onChange={e => { setPw(e.target.value); setRemovePw(false); }}
+        style={{ ...inputSt, fontSize: "12px", marginBottom: editing && initial.hasPw ? "8px" : "12px" }} />
+      {editing && initial.hasPw && (
+        <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "10px", color: "#9e968f", marginBottom: "12px", cursor: "pointer" }}>
+          <input type="checkbox" checked={removePw} onChange={e => { setRemovePw(e.target.checked); if (e.target.checked) setPw(""); }} />
+          Quitar la contraseña de esta base de datos
+        </label>
+      )}
+      <div style={{ display: "flex", gap: "8px" }}>
+        <button onClick={onCancel} style={{ flex: 1, padding: "11px", background: "#1a2a2a", border: "none", borderRadius: "10px", color: "#d4ccbf", fontSize: "11px", fontFamily: "inherit", cursor: "pointer" }}>CANCELAR</button>
+        <button onClick={() => onSave({ name, url, pw, removePw })} style={{ flex: 2, padding: "11px", background: "linear-gradient(135deg,#004d2a,#007a42)", border: "1px solid #00ff8833", borderRadius: "10px", color: "#00ff88", fontSize: "11px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700", letterSpacing: "1px" }}>✓ GUARDAR</button>
+      </div>
+    </div>
+  );
+}
+
+// Popup para pedir la contraseña al seleccionar una base de datos
+function PasswordModal({ name, onSubmit, onClose }) {
+  const [pw, setPw] = useState("");
+  const [error, setError] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const isMobile = window.innerWidth < 768;
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
+    const ok = await onSubmit(pw);
+    if (!ok) { setError(true); setPw(""); setBusy(false); }
+  };
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(4px)" }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px", background: "#111c1c", border: "1px solid #00ff8844", borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box" }}>
+        <div style={{ fontSize: "14px", color: "#00ff88", marginBottom: "6px", fontWeight: "bold", textAlign: "center" }}>🔒 {name}</div>
+        <div style={{ fontSize: "11px", color: "#9e968f", marginBottom: "16px", textAlign: "center" }}>Ingresa la contraseña para usar esta base de datos</div>
+        <input type="password" autoFocus autoComplete="current-password" placeholder="Contraseña" value={pw}
+          onChange={e => { setPw(e.target.value); setError(false); }}
+          onKeyDown={e => { if (e.key === "Enter") submit(); }}
+          style={{ ...inputSt, fontSize: "14px", marginBottom: "8px", borderColor: error ? "#ff4455" : "#1a2a2a" }} />
+        <div style={{ height: "16px", fontSize: "10px", color: "#ff4455", marginBottom: "8px", textAlign: "center" }}>{error ? "✕ Contraseña incorrecta" : ""}</div>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button onClick={onClose} style={{ flex: 1, padding: "15px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>CANCELAR</button>
+          <button onClick={submit} disabled={busy} style={{ flex: 1, padding: "15px", background: "linear-gradient(135deg,#004d2a,#007a42)", border: "none", borderRadius: "12px", color: "#00ff88", fontSize: "13px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>ENTRAR</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InputModal({ label, value, onSave, onClose }) {
   const [val, setVal] = useState(value === "" ? "" : value);
   const isMobile = window.innerWidth < 768;
@@ -644,7 +723,24 @@ export default function App() {
   const [aiLoading, setAiLoading] = useState(false);
   const [expanded, setExpanded] = useState(null);
   const [toast, setToast] = useState("");
-  const [scriptUrl, setScriptUrl] = useState(() => localStorage.getItem("swingScriptUrl") || "");
+  // Perfiles de Google Sheets: [{ id, name, url }] — migra la URL única anterior como "Principal"
+  const [scriptProfiles, setScriptProfiles] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("swingScriptProfiles") || "null");
+      if (Array.isArray(saved) && saved.length) {
+        // "Principal" queda protegida por defecto si aún no tiene contraseña
+        return saved.map(p => (!p.pwHash && p.name === "Principal") ? { ...p, pwHash: PRINCIPAL_PW_HASH } : p);
+      }
+    } catch {}
+    const legacy = localStorage.getItem("swingScriptUrl");
+    return legacy ? [{ id: uid(), name: "Principal", url: legacy, pwHash: PRINCIPAL_PW_HASH }] : [];
+  });
+  const [activeScriptId, setActiveScriptId] = useState(""); // ninguna seleccionada por defecto (solo en esta sesión)
+  const [profileForm, setProfileForm] = useState(null); // null | { id|null, name, url, hasPw }
+  const [pwPrompt, setPwPrompt] = useState(null);       // perfil que espera contraseña
+  const [noDbAlert, setNoDbAlert] = useState(false);
+  const activeProfile = scriptProfiles.find(p => p.id === activeScriptId) || null;
+  const scriptUrl = activeProfile ? activeProfile.url : "";
   const [syncStatus, setSyncStatus] = useState("idle"); // idle | pulling | pushing | ok | error
   const [updatingPrices, setUpdatingPrices] = useState(false);
   const [editTx, setEditTx] = useState(null); // { i, txId, type, field, label, value }
@@ -692,6 +788,10 @@ export default function App() {
       return {};
     }
   });
+
+  useEffect(() => {
+    localStorage.setItem("swingScriptProfiles", JSON.stringify(scriptProfiles));
+  }, [scriptProfiles]);
 
   useEffect(() => {
     localStorage.setItem("swingUnrealized", JSON.stringify(unrealized));
@@ -1220,8 +1320,13 @@ export default function App() {
     if (snap.yearSnapshots) setYearSnapshots(snap.yearSnapshots);
   };
 
+  const requireDb = () => {
+    if (!activeProfile) { setNoDbAlert(true); return false; }
+    return true;
+  };
+
   const pullFromSheet = async () => {
-    if (!scriptUrl) { showToast("⚠️ Configura el URL del script primero"); return; }
+    if (!requireDb()) return;
     setSyncStatus("pulling");
     try {
       const res = await fetch(`${scriptUrl}?action=get`, { method: "GET" });
@@ -1239,7 +1344,7 @@ export default function App() {
   };
 
   const pushToSheet = async () => {
-    if (!scriptUrl) { showToast("⚠️ Configura el URL del script primero"); return; }
+    if (!requireDb()) return;
     setSyncStatus("pushing");
     try {
       const body = "data=" + encodeURIComponent(JSON.stringify(getAppSnapshot()));
@@ -1258,10 +1363,49 @@ export default function App() {
     }
   };
 
-  const saveScriptUrl = (url) => {
-    const clean = url.trim();
-    setScriptUrl(clean);
-    localStorage.setItem("swingScriptUrl", clean);
+  const selectProfile = (p) => {
+    setProfileForm(null);
+    if (activeProfile && activeProfile.id === p.id) return;
+    if (p.pwHash) setPwPrompt(p);
+    else setActiveScriptId(p.id);
+  };
+
+  const verifyPw = async (pw) => {
+    const h = await hashPw(pw);
+    if (h !== pwPrompt.pwHash) return false;
+    setActiveScriptId(pwPrompt.id);
+    showToast(`🔓 ${pwPrompt.name} seleccionada`);
+    setPwPrompt(null);
+    return true;
+  };
+
+  const saveProfile = async ({ name, url, pw, removePw }) => {
+    name = name.trim(); url = url.trim();
+    if (!name || !url) { showToast("⚠️ Escribe un nombre y una URL"); return; }
+    if (scriptProfiles.some(p => p.id !== profileForm.id && p.name.toLowerCase() === name.toLowerCase())) {
+      showToast("⚠️ Ya existe un perfil con ese nombre"); return;
+    }
+    if (profileForm.id) {
+      const cur = scriptProfiles.find(p => p.id === profileForm.id);
+      const pwHash = pw ? await hashPw(pw) : removePw ? undefined : cur.pwHash;
+      setScriptProfiles(prev => prev.map(p => p.id === profileForm.id ? { id: p.id, name, url, ...(pwHash ? { pwHash } : {}) } : p));
+      showToast(`✅ ${name} actualizado`);
+    } else {
+      const id = uid();
+      const pwHash = pw ? await hashPw(pw) : undefined;
+      setScriptProfiles(prev => [...prev, { id, name, url, ...(pwHash ? { pwHash } : {}) }]);
+      setActiveScriptId(id);
+      showToast(`✅ ${name} agregado`);
+    }
+    setProfileForm(null);
+  };
+
+  const deleteProfile = (profile) => {
+    if (!window.confirm(`¿Eliminar "${profile.name}"? Solo se borra de esta lista, no tu Google Sheet.`)) return;
+    const rest = scriptProfiles.filter(p => p.id !== profile.id);
+    setScriptProfiles(rest);
+    if (activeProfile && activeProfile.id === profile.id) setActiveScriptId("");
+    setProfileForm(null);
   };
 
   // ── AI ────────────────────────────────────────────────────────────
@@ -3104,28 +3248,55 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
       <div style={{ background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "16px", padding: "18px", marginBottom: "14px" }}>
         <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>☁ GOOGLE SHEETS · BASE DE DATOS</div>
         <div style={{ fontSize: "10px", color: "#9e968f", marginBottom: "14px", lineHeight: "1.6" }}>
-          Sincroniza la app con tu Google Sheet en tiempo real. Puedes cambiar el script URL para apuntar a otra hoja.
+          Sincroniza la app con tu Google Sheet en tiempo real. Guarda varias bases de datos con un nombre (ej. Nicolas, Julian) y elige cuál cargar.
         </div>
 
-        {/* Script URL field */}
+        {/* Perfiles de Google Sheets */}
         <div style={{ marginBottom: "12px" }}>
-          <div style={labelSt}>SCRIPT URL (Google Apps Script)</div>
-          <div style={{ display: "flex", gap: "8px" }}>
-            <input
-              type="text"
-              placeholder="https://script.google.com/macros/s/..."
-              value={scriptUrl}
-              onChange={e => setScriptUrl(e.target.value)}
-              style={{ ...inputSt, fontSize: "10px", flex: 1 }}
-            />
-            <button onClick={() => saveScriptUrl(scriptUrl)} style={{ padding: "10px 14px", background: "#004d2a", border: "1px solid #00ff8833", borderRadius: "10px", color: "#00ff88", fontSize: "11px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
-              ✓ Guardar
-            </button>
-          </div>
-          {scriptUrl && (
-            <div style={{ fontSize: "8px", color: "#00ff8866", marginTop: "6px", letterSpacing: "1px" }}>
-              ✓ URL configurada
+          <div style={labelSt}>BASE DE DATOS ACTIVA</div>
+
+          {scriptProfiles.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+              {scriptProfiles.map(p => {
+                const active = activeProfile && p.id === activeProfile.id;
+                return (
+                  <button key={p.id} onClick={() => selectProfile(p)}
+                    style={{ padding: "10px 16px", background: active ? "linear-gradient(135deg,#004d2a,#007a42)" : "#0a1818", border: active ? "1px solid #00ff88" : "1px solid #1a2a2a", borderRadius: "10px", color: active ? "#00ff88" : "#9e968f", fontSize: "12px", fontFamily: "inherit", cursor: "pointer", fontWeight: active ? "700" : "400", letterSpacing: "1px" }}>
+                    {active ? "● " : ""}{p.name}{p.pwHash ? " 🔒" : ""}
+                  </button>
+                );
+              })}
+              <button onClick={() => setProfileForm({ id: null, name: "", url: "", hasPw: false })}
+                style={{ padding: "10px 14px", background: "transparent", border: "1px dashed #00ff8855", borderRadius: "10px", color: "#00ff88", fontSize: "12px", fontFamily: "inherit", cursor: "pointer" }}>
+                + Agregar
+              </button>
             </div>
+          )}
+
+          {scriptProfiles.length === 0 && !profileForm && (
+            <button onClick={() => setProfileForm({ id: null, name: "", url: "", hasPw: false })}
+              style={{ width: "100%", padding: "12px", background: "transparent", border: "1px dashed #00ff8855", borderRadius: "10px", color: "#00ff88", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer" }}>
+              + AGREGAR BASE DE DATOS
+            </button>
+          )}
+
+          {/* Perfil seleccionado: URL + editar / eliminar */}
+          {activeProfile && !profileForm && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#080d0f", border: "1px solid #1a2a2a", borderRadius: "10px", padding: "8px 10px" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#00ff8899", marginBottom: "3px" }}>✓ {activeProfile.name.toUpperCase()}</div>
+                <div style={{ fontSize: "9px", color: "#9e968f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeProfile.url}</div>
+              </div>
+              <button onClick={() => setProfileForm({ id: activeProfile.id, name: activeProfile.name, url: activeProfile.url, hasPw: !!activeProfile.pwHash })}
+                style={{ padding: "8px 10px", background: "#0a1818", border: "1px solid #1a2a2a", borderRadius: "8px", color: "#c9c0b4", fontSize: "11px", fontFamily: "inherit", cursor: "pointer" }}>✎</button>
+              <button onClick={() => deleteProfile(activeProfile)}
+                style={{ padding: "8px 10px", background: "#1a0a0e", border: "1px solid #ff445533", borderRadius: "8px", color: "#ff4455", fontSize: "11px", fontFamily: "inherit", cursor: "pointer" }}>🗑</button>
+            </div>
+          )}
+
+          {/* Formulario agregar / editar */}
+          {profileForm && (
+            <ProfileForm key={profileForm.id || "nuevo"} initial={profileForm} onSave={saveProfile} onCancel={() => setProfileForm(null)} />
           )}
         </div>
 
@@ -3133,14 +3304,14 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         <div style={{ display: "flex", gap: "10px" }}>
           <button
             onClick={pullFromSheet}
-            disabled={!scriptUrl || syncStatus === "pulling" || syncStatus === "pushing"}
-            style={{ flex: 1, padding: "14px", background: syncStatus === "pulling" ? "#1a2a1a" : "linear-gradient(135deg,#003d22,#006636)", border: "1px solid #00ff8844", borderRadius: "12px", color: scriptUrl ? "#00ff88" : "#445", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: scriptUrl ? "pointer" : "default", fontWeight: "700" }}>
+            disabled={syncStatus === "pulling" || syncStatus === "pushing"}
+            style={{ flex: 1, padding: "14px", background: syncStatus === "pulling" ? "#1a2a1a" : "linear-gradient(135deg,#003d22,#006636)", border: "1px solid #00ff8844", borderRadius: "12px", color: scriptUrl ? "#00ff88" : "#445", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>
             {syncStatus === "pulling" ? "⟳ CARGANDO..." : "↓ CARGAR SHEET"}
           </button>
           <button
-            onClick={() => setConfirmPush(true)}
-            disabled={!scriptUrl || syncStatus === "pulling" || syncStatus === "pushing"}
-            style={{ flex: 1, padding: "14px", background: syncStatus === "pushing" ? "#2a1a00" : "linear-gradient(135deg,#2a1a00,#4a3000)", border: "1px solid #ffd70044", borderRadius: "12px", color: scriptUrl ? "#ffd700" : "#445", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: scriptUrl ? "pointer" : "default", fontWeight: "700" }}>
+            onClick={() => { if (requireDb()) setConfirmPush(true); }}
+            disabled={syncStatus === "pulling" || syncStatus === "pushing"}
+            style={{ flex: 1, padding: "14px", background: syncStatus === "pushing" ? "#2a1a00" : "linear-gradient(135deg,#2a1a00,#4a3000)", border: "1px solid #ffd70044", borderRadius: "12px", color: scriptUrl ? "#ffd700" : "#445", fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>
             {syncStatus === "pushing" ? "⟳ GUARDANDO..." : "↑ GUARDAR EN SHEET"}
           </button>
         </div>
@@ -3149,7 +3320,7 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
         <div style={{ marginTop: "10px", textAlign: "center", fontSize: "9px", color: syncStatus === "ok" ? "#00ff88" : syncStatus === "error" ? "#ff4455" : "#445", letterSpacing: "1px" }}>
           {syncStatus === "ok" && "✓ SINCRONIZADO"}
           {syncStatus === "error" && "✕ ERROR DE CONEXIÓN"}
-          {(syncStatus === "idle" || syncStatus === "pulling" || syncStatus === "pushing") && (scriptUrl ? "Base de datos configurada" : "Sin base de datos configurada")}
+          {(syncStatus === "idle" || syncStatus === "pulling" || syncStatus === "pushing") && (scriptUrl ? `Base de datos: ${activeProfile.name}` : scriptProfiles.length ? "Ninguna base de datos seleccionada" : "Sin base de datos configurada")}
         </div>
 
         {/* Instructions */}
@@ -3251,12 +3422,24 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
           onClose={() => setEditPlazo(false)}
         />
       )}
+      {pwPrompt && <PasswordModal key={pwPrompt.id} name={pwPrompt.name} onSubmit={verifyPw} onClose={() => setPwPrompt(null)} />}
+      {noDbAlert && (
+        <div onClick={() => setNoDbAlert(false)} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(4px)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px", background: "#111c1c", border: "1px solid #ffd70044", borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box", textAlign: "center" }}>
+            <div style={{ fontSize: "14px", color: "#ffd700", marginBottom: "16px", fontWeight: "bold" }}>⚠️ SELECCIONA UNA BASE DE DATOS</div>
+            <div style={{ fontSize: "12px", color: "#c9c0b4", marginBottom: "24px", lineHeight: "1.6" }}>
+              {scriptProfiles.length ? "Elige una base de datos en ANÁLISIS antes de cargar o guardar en el Sheet." : "Aún no tienes ninguna base de datos. Agrega una con “+ Agregar” en ANÁLISIS."}
+            </div>
+            <button onClick={() => setNoDbAlert(false)} style={{ width: "100%", padding: "15px", background: "linear-gradient(135deg,#4a3000,#8a5a00)", border: "none", borderRadius: "12px", color: "#ffd700", fontSize: "13px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700" }}>ENTENDIDO</button>
+          </div>
+        </div>
+      )}
       {confirmPush && (
         <div onClick={() => setConfirmPush(false)} style={{ position: "fixed", inset: 0, background: "#000000cc", display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", zIndex: 300, backdropFilter: "blur(4px)" }}>
           <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: "400px", background: "#111c1c", borderTop: "1px solid #ffd70044", border: !isMobile ? "1px solid #ffd70044" : undefined, borderRadius: isMobile ? "20px 20px 0 0" : "20px", padding: isMobile ? "24px 20px 40px" : "24px 20px", boxSizing: "border-box", textAlign: "center" }}>
             <div style={{ fontSize: "14px", color: "#ffd700", marginBottom: "16px", fontWeight: "bold" }}>⚠️ ADVERTENCIA</div>
             <div style={{ fontSize: "12px", color: "#c9c0b4", marginBottom: "24px", lineHeight: "1.6" }}>
-              ¿Estás seguro que quieres actualizar tu base de datos? Esto sobrescribirá la anterior guardada.
+              ¿Estás seguro que quieres actualizar la base de datos{activeProfile ? <> de <span style={{ color: "#ffd700", fontWeight: "bold" }}>{activeProfile.name}</span></> : ""}? Esto sobrescribirá la anterior guardada.
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
               <button onClick={() => setConfirmPush(false)} style={{ flex: 1, padding: "15px", background: "#1a2a2a", border: "none", borderRadius: "12px", color: "#d4ccbf", fontSize: "13px", fontFamily: "inherit", cursor: "pointer" }}>CANCELAR</button>
