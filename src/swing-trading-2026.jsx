@@ -626,21 +626,40 @@ const PieLabel = ({ cx, cy, midAngle, outerRadius, percent, name }) => {
 
 // ═══════════════════════════════ MAIN APP ═════════════════════════════
 // ══════════════════════════════ LOGIN LOCAL ════════════════════════════
-// Usuario local (sin correo). Se guarda en localStorage con la contraseña hasheada.
+// Usuarios locales (sin correo) guardados en localStorage con la contraseña hasheada.
+// Cada usuario lleva anclada su propia URL de Google Apps Script.
 // La sesión vive solo en memoria: al abrir/recargar la app siempre aparece el login.
-const AUTH_KEY = "swingAuth";
+const USERS_KEY = "swingUsers";
 const SCRIPT_URL_KEY = "swingScriptUrl";
 const AUTO_LOAD_ON_LOGIN = true; // true = al entrar carga los datos del Sheet automáticamente
 
 const isValidScriptUrl = (u) => /^https:\/\/script\.google\.com\/.+/i.test((u || "").trim());
 
-const readAuth = () => {
+const readUsers = () => {
   try {
-    const a = JSON.parse(localStorage.getItem(AUTH_KEY));
-    return a && a.user && a.display && a.salt && a.hash ? a : null;
-  } catch {
-    return null;
-  }
+    const u = JSON.parse(localStorage.getItem(USERS_KEY));
+    if (u && typeof u === "object") return u;
+  } catch { /* ignora */ }
+  // Migración desde el formato anterior (un solo usuario en "swingAuth")
+  try {
+    const old = JSON.parse(localStorage.getItem("swingAuth"));
+    if (old && old.user && old.salt && old.hash) {
+      const migrated = { [old.user]: { display: old.display || old.user, salt: old.salt, hash: old.hash, url: localStorage.getItem(SCRIPT_URL_KEY) || "" } };
+      localStorage.setItem(USERS_KEY, JSON.stringify(migrated));
+      localStorage.removeItem("swingAuth");
+      return migrated;
+    }
+  } catch { /* ignora */ }
+  return {};
+};
+
+const writeUsers = (u) => localStorage.setItem(USERS_KEY, JSON.stringify(u));
+
+// Actualiza la URL anclada a un usuario (se usa al cambiarla desde la pestaña ANÁLISIS)
+const saveUserUrl = (display, url) => {
+  const users = readUsers();
+  const key = (display || "").toLowerCase();
+  if (users[key]) { users[key].url = url; writeUsers(users); }
 };
 
 const toHex = (bytes) => Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2, "0")).join("");
@@ -674,69 +693,89 @@ const loginBtnSt = (color, bg, border) => ({
   color, fontSize: "11px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", fontWeight: "700",
 });
 
-function LoginScreen({ auth, onLogin }) {
-  const hasAccount = !!auth;
-  const [mode, setMode] = useState(hasAccount ? "login" : "register"); // login | register
-  const [user, setUser] = useState(hasAccount ? auth.display : "");
+function LoginScreen({ onLogin }) {
+  const [users, setUsers] = useState(readUsers);
+  const [mode, setMode] = useState(Object.keys(users).length ? "login" : "signup"); // login | signup
+  const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [showPass, setShowPass] = useState(false);
-  const savedUrl = localStorage.getItem(SCRIPT_URL_KEY) || "";
-  const [url, setUrl] = useState(savedUrl);
+  const [url, setUrl] = useState(""); // siempre vacío al abrir SIGN UP
   const [changeUrl, setChangeUrl] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const isRegister = mode === "register";
-  const showUrlField = isRegister || !savedUrl || changeUrl;
-  const shortUrl = savedUrl ? `${savedUrl.slice(0, 32)}…${savedUrl.slice(-10)}` : "";
+  const isSignup = mode === "signup";
+  const showUrlField = isSignup || changeUrl;
+
+  const switchMode = (m) => {
+    setMode(m); setUser(""); setPass(""); setUrl(""); setChangeUrl(false); setError(""); setShowPass(false);
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
     setError("");
     const name = user.trim();
+    const key = name.toLowerCase();
 
-    if (isRegister) {
+    if (isSignup) {
       if (name.length < 3) return setError("El usuario debe tener al menos 3 caracteres");
       if (pass.length < 4) return setError("La contraseña debe tener al menos 4 caracteres");
+      if (users[key]) return setError("Ese usuario ya existe. Ve a LOGIN para entrar");
       if (!isValidScriptUrl(url)) return setError("Pega la URL del Apps Script (empieza con https://script.google.com/)");
       setBusy(true);
       const salt = newSalt();
       const hash = await hashPassword(pass, salt);
-      const newAuth = { user: name.toLowerCase(), display: name, salt, hash };
-      localStorage.setItem(AUTH_KEY, JSON.stringify(newAuth));
+      const next = { ...users, [key]: { display: name, salt, hash, url: url.trim() } };
+      writeUsers(next);
+      setUsers(next);
       localStorage.setItem(SCRIPT_URL_KEY, url.trim());
       setBusy(false);
-      onLogin(name, newAuth);
+      onLogin(name);
       return;
     }
 
+    // LOGIN: solo usuario y contraseña (la URL ya está anclada al usuario)
     if (!name || !pass) return setError("Escribe tu usuario y contraseña");
-    if (showUrlField && !isValidScriptUrl(url)) return setError("Pega la URL del Apps Script (empieza con https://script.google.com/)");
+    if (changeUrl && !isValidScriptUrl(url)) return setError("Pega la nueva URL del Apps Script (empieza con https://script.google.com/)");
+    const entry = users[key];
     setBusy(true);
-    const hash = await hashPassword(pass, auth.salt);
+    const hash = entry ? await hashPassword(pass, entry.salt) : "";
     setBusy(false);
-    if (name.toLowerCase() !== auth.user || hash !== auth.hash) return setError("Usuario o contraseña incorrectos");
-    if (showUrlField) localStorage.setItem(SCRIPT_URL_KEY, url.trim());
-    onLogin(auth.display, auth);
+    if (!entry || hash !== entry.hash) return setError("Usuario o contraseña incorrectos");
+
+    let finalUrl = entry.url;
+    if (changeUrl) {
+      finalUrl = url.trim();
+      const next = { ...users, [key]: { ...entry, url: finalUrl } };
+      writeUsers(next);
+      setUsers(next);
+    }
+    if (!finalUrl) return setError("Tu usuario no tiene URL guardada. Pulsa CAMBIAR URL y pégala");
+    localStorage.setItem(SCRIPT_URL_KEY, finalUrl);
+    onLogin(entry.display);
   };
 
-  const toggleChangeUrl = () => {
-    setError("");
-    if (changeUrl) setUrl(savedUrl);
-    setChangeUrl(v => !v);
-  };
+  const toggleChangeUrl = () => { setError(""); setUrl(""); setChangeUrl(v => !v); };
 
-  const startNewUser = () => {
-    if (!window.confirm("Se reemplazará el usuario local de este dispositivo. Tus datos en Google Sheets NO se borran. ¿Continuar?")) return;
-    setMode("register"); setUser(""); setPass(""); setError(""); setChangeUrl(false);
-  };
-
-  const backToLogin = () => {
-    setMode("login"); setUser(auth.display); setPass(""); setError(""); setUrl(savedUrl);
+  const resetUser = () => {
+    const key = user.trim().toLowerCase();
+    const entry = users[key];
+    if (!entry) return setError("Escribe arriba tu usuario para restablecerlo");
+    if (!window.confirm(`Se eliminará el usuario "${entry.display}" de este dispositivo para que lo crees de nuevo. Tus datos en Google Sheets NO se borran. ¿Continuar?`)) return;
+    const next = { ...users };
+    delete next[key];
+    writeUsers(next);
+    setUsers(next);
+    setMode("signup"); setUser(entry.display); setPass(""); setUrl(""); setChangeUrl(false); setError("");
   };
 
   const linkBtn = { background: "none", border: "none", color: "#9e968f", fontSize: "10px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", textDecoration: "underline", padding: "6px" };
+  const tabSt = (active) => ({
+    flex: 1, padding: "12px", border: "none", borderRadius: "10px", fontFamily: "inherit", fontSize: "11px", letterSpacing: "2px", fontWeight: "700", cursor: "pointer",
+    background: active ? "linear-gradient(135deg,#003d22,#006636)" : "transparent", color: active ? "#00ff88" : "#4a5a5a",
+    boxShadow: active ? "inset 0 0 0 1px #00ff8844" : "none",
+  });
 
   return (
     <div style={{ width: "100%", height: "100dvh", background: "#080d0f", fontFamily: "'Courier New',monospace", overflowY: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -747,12 +786,18 @@ function LoginScreen({ auth, onLogin }) {
           <div style={{ fontSize: "22px", fontWeight: "700", color: "#fff" }}>Portfolio Manager</div>
         </div>
 
+        {/* LOGIN / SIGN UP */}
+        <div style={{ display: "flex", gap: "6px", background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "14px", padding: "5px", marginBottom: "14px" }}>
+          <button type="button" onClick={() => switchMode("login")} style={tabSt(!isSignup)}>LOGIN</button>
+          <button type="button" onClick={() => switchMode("signup")} style={tabSt(isSignup)}>SIGN UP</button>
+        </div>
+
         <form onSubmit={submit} style={{ background: "#0c1318", border: "1px solid #00ff8822", borderRadius: "16px", padding: "18px" }}>
           <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#00ff88", marginBottom: "4px" }}>☁ GOOGLE SHEETS · BASE DE DATOS</div>
           <div style={{ fontSize: "10px", color: "#9e968f", marginBottom: "16px", lineHeight: "1.6" }}>
-            {isRegister
-              ? "Crea tu usuario local y conecta tu Google Sheet. Solo lo haces una vez en este dispositivo."
-              : `Bienvenido de nuevo. Ingresa tu usuario y contraseña.`}
+            {isSignup
+              ? "Crea tu usuario local y conecta tu Google Sheet. La URL quedará anclada a tu usuario, solo la pones una vez."
+              : "Ingresa tu usuario y contraseña. Tu Google Sheet ya está anclado a tu usuario."}
           </div>
 
           <div style={{ marginBottom: "12px" }}>
@@ -764,7 +809,7 @@ function LoginScreen({ auth, onLogin }) {
           <div style={{ marginBottom: "12px" }}>
             <div style={labelSt}>CONTRASEÑA</div>
             <div style={{ display: "flex", gap: "8px" }}>
-              <input type={showPass ? "text" : "password"} name="password" autoComplete={isRegister ? "new-password" : "current-password"}
+              <input type={showPass ? "text" : "password"} name="password" autoComplete={isSignup ? "new-password" : "current-password"}
                 value={pass} onChange={e => setPass(e.target.value)} placeholder="••••••" style={{ ...inputSt, flex: 1 }} />
               <button type="button" onClick={() => setShowPass(v => !v)} aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
                 style={{ padding: "0 14px", background: "#0a1818", border: "1px solid #1a2a2a", borderRadius: "10px", color: "#9e968f", fontSize: "14px", cursor: "pointer", fontFamily: "inherit" }}>
@@ -773,25 +818,18 @@ function LoginScreen({ auth, onLogin }) {
             </div>
           </div>
 
-          {/* URL: visible al registrarse, o al pulsar CAMBIAR URL */}
-          {showUrlField ? (
+          {/* URL: solo en SIGN UP (vacía) o al pulsar CAMBIAR URL en LOGIN */}
+          {showUrlField && (
             <div style={{ marginBottom: "12px" }}>
-              <div style={labelSt}>SCRIPT URL (Google Apps Script)</div>
+              <div style={labelSt}>{isSignup ? "SCRIPT URL (Google Apps Script)" : "NUEVA SCRIPT URL"}</div>
               <input type="text" name="scripturl" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 value={url} onChange={e => setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/..."
                 style={{ ...inputSt, fontSize: "10px" }} />
-              {!isRegister && changeUrl && (
+              {!isSignup && (
                 <div style={{ fontSize: "8px", color: "#ffd70099", marginTop: "6px", letterSpacing: "1px" }}>
-                  La nueva URL se guardará al iniciar sesión.
+                  La nueva URL se guardará en tu usuario al iniciar sesión.
                 </div>
               )}
-            </div>
-          ) : (
-            <div style={{ marginBottom: "12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", background: "#080d0f", borderRadius: "10px", padding: "10px 12px" }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: "8px", color: "#00ff8899", letterSpacing: "1px", marginBottom: "3px" }}>✓ URL CONFIGURADA</div>
-                <div style={{ fontSize: "9px", color: "#9e968f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{shortUrl}</div>
-              </div>
             </div>
           )}
 
@@ -803,22 +841,22 @@ function LoginScreen({ auth, onLogin }) {
 
           <button type="submit" disabled={busy}
             style={{ ...loginBtnSt("#00ff88", "linear-gradient(135deg,#003d22,#006636)", "#00ff8844"), cursor: busy ? "wait" : "pointer" }}>
-            {busy ? "⟳ VERIFICANDO..." : isRegister ? "✓ CREAR USUARIO Y ENTRAR" : "→ ENTRAR"}
+            {busy ? "⟳ VERIFICANDO..." : isSignup ? "✓ CREAR USUARIO Y ENTRAR" : "→ ENTRAR"}
           </button>
 
-          {!isRegister && savedUrl && (
-            <button type="button" onClick={toggleChangeUrl}
-              style={{ ...loginBtnSt("#ffd700", "linear-gradient(135deg,#2a1a00,#4a3000)", "#ffd70044"), marginTop: "10px" }}>
-              {changeUrl ? "✕ CANCELAR CAMBIO DE URL" : "⇄ CAMBIAR URL"}
-            </button>
+          {!isSignup && (
+            <>
+              <button type="button" onClick={toggleChangeUrl}
+                style={{ ...loginBtnSt("#ffd700", "linear-gradient(135deg,#2a1a00,#4a3000)", "#ffd70044"), marginTop: "10px" }}>
+                {changeUrl ? "✕ CANCELAR CAMBIO DE URL" : "⇄ CAMBIAR URL"}
+              </button>
+              <div style={{ textAlign: "center", marginTop: "12px" }}>
+                <button type="button" onClick={resetUser} style={linkBtn}>¿Olvidaste tu contraseña? Restablecer usuario</button>
+              </div>
+            </>
           )}
 
-          <div style={{ textAlign: "center", marginTop: "12px" }}>
-            {!isRegister && <button type="button" onClick={startNewUser} style={linkBtn}>¿Olvidaste tu contraseña? Crear usuario nuevo</button>}
-            {isRegister && hasAccount && <button type="button" onClick={backToLogin} style={linkBtn}>← Volver a iniciar sesión</button>}
-          </div>
-
-          {/* Instrucciones: solo al registrarse o al cambiar la URL */}
+          {/* Instrucciones: solo en SIGN UP o al cambiar la URL */}
           {showUrlField && (
             <div style={{ marginTop: "14px", background: "#080d0f", borderRadius: "10px", padding: "12px" }}>
               <div style={{ fontSize: "8px", letterSpacing: "2px", color: "#ffd700", marginBottom: "8px" }}>CÓMO CONFIGURAR</div>
@@ -1481,6 +1519,7 @@ function MainApp({ user, onLogout }) {
     const clean = url.trim();
     setScriptUrl(clean);
     localStorage.setItem("swingScriptUrl", clean);
+    saveUserUrl(user, clean); // mantiene la URL anclada al usuario
   };
 
   const handleLogout = () => {
@@ -3637,11 +3676,8 @@ Da análisis crítico en 4 puntos concisos con emoji. Español directo.`;
 
 // ══════════════════════════════ ROOT (PUERTA DE LOGIN) ════════════════
 export default function App() {
-  const [auth, setAuth] = useState(readAuth);
   const [session, setSession] = useState(null); // solo en memoria: al recargar vuelve al login
 
-  if (!session) {
-    return <LoginScreen auth={auth} onLogin={(name, a) => { setAuth(a); setSession(name); }} />;
-  }
+  if (!session) return <LoginScreen onLogin={(name) => setSession(name)} />;
   return <MainApp user={session} onLogout={() => setSession(null)} />;
 }
