@@ -662,6 +662,38 @@ const saveUserUrl = (display, url) => {
   if (users[key]) { users[key].url = url; writeUsers(users); }
 };
 
+// ── Credenciales en el Google Sheet ─────────────────────────────────
+// El usuario (nombre, salt y hash de la contraseña; nunca la contraseña) se guarda dentro del
+// JSON de AppData bajo la clave "auth", así se puede iniciar sesión desde otro dispositivo.
+const fetchSheetSnapshot = async (url) => {
+  const res = await fetch(`${url}?action=get`, { method: "GET" });
+  const json = await res.json();
+  if (json && json.error) throw new Error(json.error);
+  return json || {};
+};
+
+const pushSheetSnapshot = async (url, snap) => {
+  await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "data=" + encodeURIComponent(JSON.stringify(snap)),
+  });
+};
+
+// Lee el Sheet, agrega al usuario en "auth" sin tocar el resto de los datos y verifica que quedó guardado
+const saveAuthToSheet = async (url, key, entry, overwrite = false) => {
+  const snap = await fetchSheetSnapshot(url);
+  if (snap.auth && snap.auth[key] && !overwrite) return;
+  const pub = { display: entry.display, salt: entry.salt, hash: entry.hash };
+  try {
+    await pushSheetSnapshot(url, { ...snap, auth: { ...(snap.auth || {}), [key]: pub } });
+  } catch { /* se verifica abajo */ }
+  const check = await fetchSheetSnapshot(url);
+  if (!check.auth || !check.auth[key] || check.auth[key].hash !== entry.hash) {
+    throw new Error("No se pudo guardar el usuario en el Sheet");
+  }
+};
+
 const toHex = (bytes) => Array.from(new Uint8Array(bytes)).map(b => b.toString(16).padStart(2, "0")).join("");
 
 const newSalt = () => {
@@ -701,14 +733,16 @@ function LoginScreen({ onLogin }) {
   const [showPass, setShowPass] = useState(false);
   const [url, setUrl] = useState(""); // siempre vacío al abrir SIGN UP
   const [changeUrl, setChangeUrl] = useState(false);
+  const [newDevice, setNewDevice] = useState(false);       // usuario no guardado en este dispositivo → pide la URL
+  const [allowOverwrite, setAllowOverwrite] = useState(false); // solo tras "Restablecer usuario"
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   const isSignup = mode === "signup";
-  const showUrlField = isSignup || changeUrl;
+  const showUrlField = isSignup || changeUrl || newDevice;
 
   const switchMode = (m) => {
-    setMode(m); setUser(""); setPass(""); setUrl(""); setChangeUrl(false); setError(""); setShowPass(false);
+    setMode(m); setUser(""); setPass(""); setUrl(""); setChangeUrl(false); setNewDevice(false); setAllowOverwrite(false); setError(""); setShowPass(false);
   };
 
   const submit = async (e) => {
@@ -717,57 +751,115 @@ function LoginScreen({ onLogin }) {
     setError("");
     const name = user.trim();
     const key = name.toLowerCase();
+    const cleanUrl = url.trim();
+    const urlMsg = "Pega la URL del Apps Script (empieza con https://script.google.com/)";
+    const connErr = "No se pudo conectar con tu Google Sheet. Revisa que la URL sea la de la implementación (termina en /exec), que el acceso sea \"Cualquier persona\" y tu conexión";
 
+    // ── SIGN UP ──
     if (isSignup) {
       if (name.length < 3) return setError("El usuario debe tener al menos 3 caracteres");
       if (pass.length < 4) return setError("La contraseña debe tener al menos 4 caracteres");
-      if (users[key]) return setError("Ese usuario ya existe. Ve a LOGIN para entrar");
-      if (!isValidScriptUrl(url)) return setError("Pega la URL del Apps Script (empieza con https://script.google.com/)");
+      if (!isValidScriptUrl(cleanUrl)) return setError(urlMsg);
       setBusy(true);
-      const salt = newSalt();
-      const hash = await hashPassword(pass, salt);
-      const next = { ...users, [key]: { display: name, salt, hash, url: url.trim() } };
-      writeUsers(next);
-      setUsers(next);
-      localStorage.setItem(SCRIPT_URL_KEY, url.trim());
-      setBusy(false);
-      onLogin(name);
+      try {
+        // Leer el Sheet valida la URL y evita pisar un usuario que ya existe ahí
+        const snap = await fetchSheetSnapshot(cleanUrl);
+        if (snap.auth && snap.auth[key] && !allowOverwrite) {
+          setBusy(false);
+          return setError("Ese usuario ya existe en este Google Sheet. Ve a LOGIN");
+        }
+        const salt = newSalt();
+        const hash = await hashPassword(pass, salt);
+        const entry = { display: name, salt, hash, url: cleanUrl };
+        await saveAuthToSheet(cleanUrl, key, entry, true);
+        const next = { ...users, [key]: entry };
+        writeUsers(next); setUsers(next);
+        localStorage.setItem(SCRIPT_URL_KEY, cleanUrl);
+        setBusy(false);
+        onLogin(name);
+      } catch {
+        setBusy(false);
+        setError(connErr);
+      }
       return;
     }
 
-    // LOGIN: solo usuario y contraseña (la URL ya está anclada al usuario)
+    // ── LOGIN ──
     if (!name || !pass) return setError("Escribe tu usuario y contraseña");
-    if (changeUrl && !isValidScriptUrl(url)) return setError("Pega la nueva URL del Apps Script (empieza con https://script.google.com/)");
+    if (changeUrl && !isValidScriptUrl(cleanUrl)) return setError(urlMsg);
     const entry = users[key];
+
+    // Usuario que no está en este dispositivo → se busca en el Google Sheet (solo la primera vez aquí)
+    if (!entry) {
+      if (!isValidScriptUrl(cleanUrl)) {
+        setNewDevice(true);
+        return setError("Este usuario no está guardado en este dispositivo. Pega la URL de tu Google Sheet (solo esta vez) para iniciar sesión aquí");
+      }
+      setBusy(true);
+      try {
+        const snap = await fetchSheetSnapshot(cleanUrl);
+        const remote = snap.auth && snap.auth[key];
+        const h = remote ? await hashPassword(pass, remote.salt) : "";
+        if (!remote || h !== remote.hash) {
+          setBusy(false);
+          return setError("Usuario o contraseña incorrectos");
+        }
+        const display = remote.display || name;
+        const next = { ...users, [key]: { display, salt: remote.salt, hash: remote.hash, url: cleanUrl } };
+        writeUsers(next); setUsers(next);
+        localStorage.setItem(SCRIPT_URL_KEY, cleanUrl);
+        setBusy(false);
+        onLogin(display);
+      } catch {
+        setBusy(false);
+        setError(connErr);
+      }
+      return;
+    }
+
+    // Usuario guardado en este dispositivo
     setBusy(true);
-    const hash = entry ? await hashPassword(pass, entry.salt) : "";
-    setBusy(false);
-    if (!entry || hash !== entry.hash) return setError("Usuario o contraseña incorrectos");
+    const hash = await hashPassword(pass, entry.salt);
+    if (hash !== entry.hash) {
+      setBusy(false);
+      return setError("Usuario o contraseña incorrectos");
+    }
 
     let finalUrl = entry.url;
     if (changeUrl) {
-      finalUrl = url.trim();
+      try {
+        await saveAuthToSheet(cleanUrl, key, entry); // valida la URL nueva y deja el usuario también en ese Sheet
+      } catch {
+        setBusy(false);
+        return setError(connErr);
+      }
+      finalUrl = cleanUrl;
       const next = { ...users, [key]: { ...entry, url: finalUrl } };
-      writeUsers(next);
-      setUsers(next);
+      writeUsers(next); setUsers(next);
     }
-    if (!finalUrl) return setError("Tu usuario no tiene URL guardada. Pulsa CAMBIAR URL y pégala");
+    if (!finalUrl) {
+      setBusy(false);
+      return setError("Tu usuario no tiene URL guardada. Pulsa CAMBIAR URL y pégala");
+    }
     localStorage.setItem(SCRIPT_URL_KEY, finalUrl);
+    // Segundo plano: asegura que este usuario también viva en el Sheet (repara usuarios creados antes)
+    if (!changeUrl) saveAuthToSheet(finalUrl, key, entry).catch(() => {});
+    setBusy(false);
     onLogin(entry.display);
   };
 
   const toggleChangeUrl = () => { setError(""); setUrl(""); setChangeUrl(v => !v); };
 
   const resetUser = () => {
-    const key = user.trim().toLowerCase();
-    const entry = users[key];
-    if (!entry) return setError("Escribe arriba tu usuario para restablecerlo");
-    if (!window.confirm(`Se eliminará el usuario "${entry.display}" de este dispositivo para que lo crees de nuevo. Tus datos en Google Sheets NO se borran. ¿Continuar?`)) return;
+    const name = user.trim();
+    const key = name.toLowerCase();
+    if (!name) return setError("Escribe arriba tu usuario para restablecerlo");
+    if (!window.confirm(`Vas a restablecer el usuario "${name}": tendrás que crearlo de nuevo con una contraseña nueva y la URL de tu Google Sheet. Tus datos del portafolio NO se borran. ¿Continuar?`)) return;
     const next = { ...users };
     delete next[key];
     writeUsers(next);
     setUsers(next);
-    setMode("signup"); setUser(entry.display); setPass(""); setUrl(""); setChangeUrl(false); setError("");
+    setMode("signup"); setUser(name); setPass(""); setUrl(""); setChangeUrl(false); setNewDevice(false); setAllowOverwrite(true); setError("");
   };
 
   const linkBtn = { background: "none", border: "none", color: "#9e968f", fontSize: "10px", letterSpacing: "1px", fontFamily: "inherit", cursor: "pointer", textDecoration: "underline", padding: "6px" };
@@ -797,7 +889,7 @@ function LoginScreen({ onLogin }) {
           <div style={{ fontSize: "10px", color: "#9e968f", marginBottom: "16px", lineHeight: "1.6" }}>
             {isSignup
               ? "Crea tu usuario local y conecta tu Google Sheet. La URL quedará anclada a tu usuario, solo la pones una vez."
-              : "Ingresa tu usuario y contraseña. Tu Google Sheet ya está anclado a tu usuario."}
+              : "Ingresa tu usuario y contraseña. Tu Google Sheet ya está anclado a tu usuario. En un dispositivo nuevo te pediremos la URL una sola vez."}
           </div>
 
           <div style={{ marginBottom: "12px" }}>
@@ -821,11 +913,11 @@ function LoginScreen({ onLogin }) {
           {/* URL: solo en SIGN UP (vacía) o al pulsar CAMBIAR URL en LOGIN */}
           {showUrlField && (
             <div style={{ marginBottom: "12px" }}>
-              <div style={labelSt}>{isSignup ? "SCRIPT URL (Google Apps Script)" : "NUEVA SCRIPT URL"}</div>
+              <div style={labelSt}>{isSignup ? "SCRIPT URL (Google Apps Script)" : changeUrl ? "NUEVA SCRIPT URL" : "SCRIPT URL (solo esta vez en este dispositivo)"}</div>
               <input type="text" name="scripturl" autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false}
                 value={url} onChange={e => setUrl(e.target.value)} placeholder="https://script.google.com/macros/s/..."
                 style={{ ...inputSt, fontSize: "10px" }} />
-              {!isSignup && (
+              {!isSignup && changeUrl && (
                 <div style={{ fontSize: "8px", color: "#ffd70099", marginTop: "6px", letterSpacing: "1px" }}>
                   La nueva URL se guardará en tu usuario al iniciar sesión.
                 </div>
@@ -1499,7 +1591,16 @@ function MainApp({ user, onLogout }) {
     if (!scriptUrl) { showToast("⚠️ Configura el URL del script primero"); return; }
     setSyncStatus("pushing");
     try {
-      const body = "data=" + encodeURIComponent(JSON.stringify(getAppSnapshot()));
+      // Lee el Sheet primero para no borrar los usuarios guardados ahí
+      const remote = await fetchSheetSnapshot(scriptUrl);
+      const auth = { ...(remote.auth || {}) };
+      const localUsers = readUsers();
+      Object.keys(localUsers).forEach(k => {
+        if (localUsers[k].url === scriptUrl && !auth[k]) {
+          auth[k] = { display: localUsers[k].display, salt: localUsers[k].salt, hash: localUsers[k].hash };
+        }
+      });
+      const body = "data=" + encodeURIComponent(JSON.stringify({ ...getAppSnapshot(), auth }));
       await fetch(scriptUrl, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
